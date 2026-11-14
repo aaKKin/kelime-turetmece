@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kelime Türetmece</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+    <header class="logo-header">
+        <img src="logo.png" alt="Kelime Türetmece" class="game-logo" id="game-logo-img"
+             onerror="if(!this.dataset.triedJpg){this.dataset.triedJpg='1';this.src='logo.jpg';}else{this.style.display='none';document.getElementById('fallback-title').style.display='block';}">
+        <div id="fallback-title" class="fallback-logo-title" style="display: none;">KELİME TÜRETMECE</div>
+    </header>
+
+    <div class="main-layout">
+        <!-- EN SOL PANEL: AKTİF ODALAR -->
+        <aside class="glass-card online-panel">
+            <div class="online-header">
+                <div class="online-title">
+                    <span class="pulse-dot"></span>
+                    <span>Aktif Odalar</span>
+                </div>
+                <div class="online-header-right">
+                    <button class="refresh-rooms-btn" title="Listeyi Yenile" onclick="fetchActiveRooms(true)">↻</button>
+                    <span class="online-count-badge" id="online-count-badge">0</span>
+                </div>
+            </div>
+            <div class="online-list" id="online-rooms-list">
+                <div class="online-empty-msg">Şu an aktif oda yok. Oda kurduğunda burada görünür!</div>
+            </div>
+        </aside>
+
+        <!-- ORTA PANEL: OYUN ALANI -->
+        <div class="glass-card game-container">
+            <div class="dict-badge-wrap">
+                <div class="dict-status">
+                    <span class="pulse-dot"></span>
+                    <span id="dict-status">Sözlük yükleniyor...</span>
+                </div>
+            </div>
+
+            <!-- EKRAN 1: LOBİ / MOD SEÇİMİ -->
+            <div id="lobby-screen">
+                <div class="lobby-box">
+                    <label>Avatarını Seç</label>
+                    <div class="avatar-grid" id="avatar-grid"></div>
+
+                    <label>Takma Adın</label>
+                    <div class="lobby-row">
+                        <input type="text" id="player-name" placeholder="Takma adın..." maxlength="15">
+                    </div>
+
+                    <label>Oda Gizliliği ve Kurulum</label>
+                    <div class="privacy-toggle">
+                        <div class="privacy-btn active-public" id="btn-privacy-public" onclick="setRoomPrivacy(true)">
+                            🌍 Herkese Açık
+                        </div>
+                        <div class="privacy-btn" id="btn-privacy-private" onclick="setRoomPrivacy(false)">
+                            🔒 Gizli Oda
+                        </div>
+                    </div>
+
+                    <div class="lobby-row">
+                        <button class="btn btn-primary" onclick="createRoom()">+ Oda Kur (Arkadaşlar & Botlar)</button>
+                    </div>
+
+                    <label style="margin-top: 4px;">Gizli Odaya Kodla Katıl</label>
+                    <div class="lobby-row" style="margin-bottom: 0;">
+                        <input type="text" id="join-code-input" placeholder="4 Haneli Gizli Oda Kodu" maxlength="4" inputmode="numeric">
+                        <button class="btn btn-secondary" onclick="joinRoom()">Katıl</button>
+                    </div>
+                </div>
+
+                <button class="btn btn-solo" onclick="startQuickBotArena()">⚡ Hızlı Oyun: 3 Bota Karşı Oyna</button>
+            </div>
+
+            <!-- EKRAN 2: AKTİF OYUN ALANI -->
+            <div id="game-screen" class="hidden">
+                <div class="room-banner" id="room-banner">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="private-code-wrapper" class="hidden">Oda Kodu: <span class="room-code-display" id="room-code-text" title="Kopyalamak için tıkla" onclick="copyRoomCode()">-</span></span>
+                        <span class="room-privacy-pill" id="room-privacy-badge">🌍 Herkese Açık</span>
+                    </div>
+                    <span id="connection-count" style="color: var(--text-muted); font-weight: 600;">1 Oyuncu</span>
+                </div>
+
+                <div class="players-bar" id="players-bar"></div>
+
+                <div class="eliminated-banner hidden" id="eliminated-banner">
+                    ❌ Süren dolduğu için elendin! Oyun bitene kadar yazı yazamazsın (İzleyici Modu).
+                </div>
+
+                <div class="stats">
+                    <span>Tur: <strong id="turn-count">0</strong></span>
+                    <span>Süre: <strong id="time-text">7.0</strong> sn</span>
+                </div>
+
+                <div class="timer-bar-bg">
+                    <div class="timer-bar" id="timer-bar"></div>
+                </div>
+
+                <div class="current-word-box" id="current-word-box">
+                    <div class="turn-indicator" id="turn-indicator">Oda bekleniyor...</div>
+                    <div id="bot-word">HAZIR</div>
+                </div>
+
+                <input type="text" id="word-input" placeholder="Kelimeyi yaz ve Enter'a bas..." disabled autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="send">
+                
+                <div class="host-controls" id="host-controls">
+                    <button class="btn btn-bot" id="add-bot-btn" onclick="addBotToRoom()">+ Bot Ekle</button>
+                    <button class="btn btn-primary" id="host-start-btn" onclick="hostStartMultiplayer()">Oyunu Başlat</button>
+                </div>
+                
+                <button class="btn btn-solo" onclick="leaveRoom()">Lobiden Çık</button>
+            </div>
+
+            <div id="message"></div>
+        </div>
+
+        <!-- SAĞ PANEL: KELİME ZİNCİRİ VE GLOBAL LİDERLİK TABLOSU -->
+        <div class="glass-card history-panel">
+            <div class="panel-tabs">
+                <button class="tab-btn active" id="tab-btn-chain" onclick="switchRightTab('chain')">Kelime Zinciri (<span id="total-words-num">0</span>)</button>
+                <button class="tab-btn" id="tab-btn-leaderboard" onclick="switchRightTab('leaderboard')">🏆 İlk 5 Lider</button>
+            </div>
+
+            <!-- SEKME 1: KELİME ZİNCİRİ -->
+            <div id="tab-chain" class="tab-content">
+                <div class="table-wrapper" id="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="col-num">#</th>
+                                <th>Oyuncu</th>
+                                <th>Kelime</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody"></tbody>
+                    </table>
+                    <div class="empty-state" id="empty-state">Oyun başladığında türetilen kelimeler burada akacak.</div>
+                </div>
+            </div>
+
+            <!-- SEKME 2: GLOBAL LİDERLİK TABLOSU (İLK 5) -->
+            <div id="tab-leaderboard" class="tab-content hidden">
+                <div class="lb-sync-info" id="lb-sync-info">Bulut sıralaması yükleniyor...</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="col-num">#</th>
+                                <th>Oyuncu</th>
+                                <th style="text-align: center;">Galibiyet</th>
+                                <th style="text-align: right;">Kelime</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-tbody"></tbody>
+                    </table>
+                    <div class="empty-state" id="lb-empty-state">Henüz tamamlanmış bir maç yok. İlk kazanan sen ol!</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
