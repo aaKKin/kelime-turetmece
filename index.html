@@ -109,7 +109,7 @@
             box-shadow: 0 24px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
         }
 
-        /* EN SOL PANEL: AKTİF LOBİLER / ODALAR */
+        /* EN SOL PANEL: AKTİF ODALAR */
         .online-panel {
             padding: 22px 18px;
             flex: 0.78;
@@ -160,8 +160,9 @@
         }
         .online-room-card {
             display: flex;
-            flex-direction: column;
-            gap: 7px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
             background: var(--inner-bg);
             border: 1px solid rgba(255, 255, 255, 0.06);
             padding: 11px 12px;
@@ -175,29 +176,36 @@
             background: rgba(0, 210, 255, 0.06);
             border-color: rgba(0, 210, 255, 0.45);
         }
-        .online-room-top {
+        .online-room-info {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
+            flex-direction: column;
+            gap: 3px;
+            overflow: hidden;
         }
         .online-user-left {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 7px;
             overflow: hidden;
         }
         .online-user-avatar {
-            font-size: 1.2rem;
+            font-size: 1.15rem;
             flex-shrink: 0;
         }
         .online-user-name {
-            font-size: 0.84rem;
+            font-size: 0.85rem;
             font-weight: 700;
             color: var(--text-main);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        .room-meta-line {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.73rem;
+            color: var(--text-muted);
         }
         .room-player-pill {
             font-family: 'JetBrains Mono', monospace;
@@ -205,46 +213,41 @@
             font-weight: 700;
             color: var(--text-muted);
             background: rgba(255, 255, 255, 0.05);
-            padding: 2px 7px;
-            border-radius: 6px;
-            flex-shrink: 0;
-        }
-        .online-room-bottom {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 0.75rem;
-        }
-        .public-code-tag {
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 800;
-            color: var(--cyan);
-            background: rgba(0, 210, 255, 0.12);
-            border: 1px solid rgba(0, 210, 255, 0.25);
-            padding: 3px 8px;
-            border-radius: 7px;
-            letter-spacing: 1px;
+            padding: 1px 6px;
+            border-radius: 5px;
         }
         .quick-join-mini {
-            background: var(--cyan);
-            color: #061018;
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            color: #05160e;
             border: none;
-            font-size: 0.72rem;
+            font-size: 0.76rem;
             font-weight: 800;
-            padding: 4px 9px;
-            border-radius: 7px;
+            padding: 7px 14px;
+            border-radius: 9px;
             cursor: pointer;
-            transition: transform 0.15s;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.22);
+            transition: transform 0.15s, box-shadow 0.15s;
         }
         .quick-join-mini:hover {
-            transform: scale(1.05);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0, 255, 136, 0.35);
         }
         .private-status-tag {
-            color: var(--emerald);
+            color: #d6a2e8;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
+        }
+        .in-game-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--warning);
+            background: rgba(255, 165, 2, 0.12);
+            padding: 4px 8px;
+            border-radius: 7px;
+            flex-shrink: 0;
         }
         .online-empty-msg {
             text-align: center;
@@ -513,13 +516,18 @@
             background: rgba(0, 210, 255, 0.2);
         }
         .room-privacy-pill {
-            font-size: 0.72rem;
+            font-size: 0.75rem;
             font-weight: 700;
-            padding: 3px 8px;
-            border-radius: 6px;
-            margin-left: 6px;
-            background: rgba(255, 255, 255, 0.06);
-            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 8px;
+            background: rgba(0, 210, 255, 0.1);
+            color: var(--cyan);
+            border: 1px solid rgba(0, 210, 255, 0.22);
+        }
+        .room-privacy-pill.private-pill {
+            background: rgba(165, 94, 234, 0.14);
+            color: #d6a2e8;
+            border-color: rgba(165, 94, 234, 0.3);
         }
 
         .players-bar {
@@ -810,7 +818,7 @@
     </header>
 
     <div class="main-layout">
-        <!-- EN SOL PANEL: AKTİF LOBİLER / ODALAR -->
+        <!-- EN SOL PANEL: AKTİF ODALAR -->
         <aside class="glass-card online-panel">
             <div class="online-header">
                 <div class="online-title">
@@ -820,7 +828,7 @@
                 <span class="online-count-badge" id="online-count-badge">0</span>
             </div>
             <div class="online-list" id="online-rooms-list">
-                <div class="online-empty-msg">Şu an aktif oda yok. İlk odayı sen kur!</div>
+                <div class="online-empty-msg">Şu an aktif oda yok. Oda kurduğunda burada görünür!</div>
             </div>
         </aside>
 
@@ -858,9 +866,10 @@
                         <button class="btn btn-primary" onclick="createRoom()">+ Oda Kur (Arkadaşlar & Botlar)</button>
                     </div>
 
+                    <label style="margin-top: 4px;">Gizli Odaya Kodla Katıl</label>
                     <div class="lobby-row" style="margin-bottom: 0;">
-                        <input type="text" id="join-code-input" placeholder="4 Haneli Kod (Örn: 4821)" maxlength="4" inputmode="numeric">
-                        <button class="btn btn-secondary" onclick="joinRoom()">Odaya Katıl</button>
+                        <input type="text" id="join-code-input" placeholder="4 Haneli Gizli Oda Kodu" maxlength="4" inputmode="numeric">
+                        <button class="btn btn-secondary" onclick="joinRoom()">Katıl</button>
                     </div>
                 </div>
 
@@ -870,9 +879,9 @@
             <!-- EKRAN 2: AKTİF OYUN ALANI -->
             <div id="game-screen" class="hidden">
                 <div class="room-banner" id="room-banner">
-                    <div>
-                        <span>Oda Kodu: <span class="room-code-display" id="room-code-text" title="Kopyalamak için tıkla" onclick="copyRoomCode()">-</span></span>
-                        <span class="room-privacy-pill" id="room-privacy-badge">🌍 Açık</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="private-code-wrapper" class="hidden">Oda Kodu: <span class="room-code-display" id="room-code-text" title="Kopyalamak için tıkla" onclick="copyRoomCode()">-</span></span>
+                        <span class="room-privacy-pill" id="room-privacy-badge">🌍 Herkese Açık</span>
                     </div>
                     <span id="connection-count" style="color: var(--text-muted); font-weight: 600;">1 Oyuncu</span>
                 </div>
@@ -1041,11 +1050,10 @@
         }
     }
 
-    // --- AKTİF ODALAR / LOBİLER LİSTESİ (YALNIZCA ODAYA GİRENLER GÖRÜNÜR) ---
+    // --- AKTİF ODALAR / LOBİLER LİSTESİ ---
     let activeRoomsPollInterval = null;
 
     async function sendRoomHeartbeat() {
-        // Ana giriş ekranındayken (odaya girmeden) kesinlikle aktif görünme
         if (!currentRoomCode || !isHost || isLocalSolo) return;
 
         try {
@@ -1086,7 +1094,6 @@
             if (data) {
                 for (const [rCode, info] of Object.entries(data)) {
                     if (!info) continue;
-                    // Son 25 saniye içinde aktif olan odaları listele
                     if (now - (info.lastSeen || 0) <= 25000) {
                         validRooms.push(info);
                     } else {
@@ -1115,45 +1122,40 @@
             card.className = "online-room-card" + (room.isPublic ? " is-public" : "");
 
             const isPlaying = room.status === "playing";
-            const statusSuffix = isPlaying ? " • Oyunda" : "";
+            const isFull = (room.playerCount || 1) >= 6;
+            const isMyRoom = room.code === currentRoomCode;
 
-            let bottomHtml = "";
+            let rightActionHtml = "";
+            let subInfoHtml = "";
+
             if (room.isPublic) {
-                // Herkese açık oda: Kodu göster ve tek tıkla katılma imkanı sun
-                const canJoinDirectly = !currentRoomCode && !isPlaying;
-                bottomHtml = `
-                    <span class="public-code-tag">🌍 Kod: ${room.code}</span>
-                    ${canJoinDirectly
-                        ? `<button class="quick-join-mini" onclick="quickJoinPublicRoom('${room.code}')">Katıl</button>`
-                        : `<span style="color: var(--text-muted); font-size: 0.72rem;">${isPlaying ? "Maçta" : "Açık"}</span>`
-                    }
-                `;
+                // Herkese açık oda: Kod yazmaz, uygun durumdaysa direkt "Katıl" butonu çıkar
+                subInfoHtml = `<span class="room-player-pill">${room.playerCount || 1}/6 Oyuncu</span>`;
+
+                if (isMyRoom) {
+                    rightActionHtml = `<span style="font-size: 0.72rem; color: var(--cyan); font-weight: 700;">Odandasın</span>`;
+                } else if (!currentRoomCode && !isPlaying && !isFull) {
+                    rightActionHtml = `<button class="quick-join-mini" onclick="joinRoom('${room.code}')">Katıl</button>`;
+                } else {
+                    rightActionHtml = `<span class="in-game-badge">${isPlaying ? "Maçta" : (isFull ? "Dolu" : "Açık")}</span>`;
+                }
             } else {
-                // Gizli oda: Kodu gizle, sadece aktif olduğunu yaz
-                bottomHtml = `
-                    <span class="private-status-tag">🔒 Gizli Odada Aktif${statusSuffix}</span>
-                `;
+                // Gizli oda: Kod yazmaz, sadece aktif olduğu bilgisi yer alır
+                subInfoHtml = `<span class="private-status-tag">🔒 Gizli Odada Aktif${isPlaying ? " • Maçta" : ""}</span>`;
             }
 
             card.innerHTML = `
-                <div class="online-room-top">
+                <div class="online-room-info">
                     <div class="online-user-left">
                         <span class="online-user-avatar">${room.hostAvatar || "🎮"}</span>
                         <span class="online-user-name">${room.hostName}</span>
                     </div>
-                    <span class="room-player-pill">${room.playerCount || 1}/6</span>
+                    <div class="room-meta-line">${subInfoHtml}</div>
                 </div>
-                <div class="online-room-bottom">
-                    ${bottomHtml}
-                </div>
+                ${rightActionHtml}
             `;
             container.appendChild(card);
         });
-    }
-
-    function quickJoinPublicRoom(code) {
-        document.getElementById("join-code-input").value = code;
-        joinRoom();
     }
 
     function startActiveRoomsMonitor() {
@@ -1463,6 +1465,7 @@
 
     let gameState = {
         status: "lobby",
+        isPublic: true,
         players: [],
         turnIndex: 0,
         currentWord: "",
@@ -1476,6 +1479,7 @@
         const s = raw || {};
         return {
             status: s.status || "lobby",
+            isPublic: s.isPublic !== false,
             players: Array.isArray(s.players) ? s.players : [],
             turnIndex: typeof s.turnIndex === "number" ? s.turnIndex : 0,
             currentWord: s.currentWord || "",
@@ -1502,6 +1506,24 @@
     function showGameScreen() {
         document.getElementById("lobby-screen").classList.add("hidden");
         document.getElementById("game-screen").classList.remove("hidden");
+    }
+
+    function updateRoomBannerPrivacy(publicFlag, code) {
+        const codeWrapper = document.getElementById("private-code-wrapper");
+        const badge = document.getElementById("room-privacy-badge");
+
+        if (publicFlag) {
+            // Herkese açık odada kod gösterilmez, sol listedeki Katıl butonu kullanılır
+            codeWrapper.classList.add("hidden");
+            badge.textContent = "🌍 Herkese Açık Oda";
+            badge.className = "room-privacy-pill";
+        } else {
+            // Gizli odada kod görünür ve paylaşılabilir
+            codeWrapper.classList.remove("hidden");
+            document.getElementById("room-code-text").textContent = code;
+            badge.textContent = "🔒 Gizli Oda";
+            badge.className = "room-privacy-pill private-pill";
+        }
     }
 
     async function pushRoomStateToFirebase() {
@@ -1632,6 +1654,7 @@
 
         gameState = normalizeGameState({
             status: "lobby",
+            isPublic: isRoomPublic,
             players: [{ id: myId, name: myName, avatar: selectedAvatar, isBot: false, eliminated: false }],
             turnStartedAt: Date.now()
         });
@@ -1649,8 +1672,7 @@
             await fetchActiveRooms();
 
             showGameScreen();
-            document.getElementById("room-code-text").textContent = currentRoomCode;
-            document.getElementById("room-privacy-badge").textContent = isRoomPublic ? "🌍 Herkese Açık" : "🔒 Gizli Oda";
+            updateRoomBannerPrivacy(isRoomPublic, currentRoomCode);
             renderGameState();
             startRoomSyncLoop();
         } catch (e) {
@@ -1660,18 +1682,21 @@
         }
     }
 
-    // --- ODAYA KATIL (CLIENT) ---
-    async function joinRoom() {
-        const rawCode = document.getElementById("join-code-input").value.trim().replace(/\D/g, "");
+    // --- ODAYA KATIL (CLIENT - HEM GİZLİ KOD HEM DİREKT BUTON İÇİN) ---
+    async function joinRoom(directCode = null) {
+        const rawCode = directCode
+            ? String(directCode).trim()
+            : document.getElementById("join-code-input").value.trim().replace(/\D/g, "");
+
         if (rawCode.length !== 4) {
             msgEl.style.color = "var(--danger)";
-            msgEl.textContent = "Lütfen 4 haneli oda kodunu gir!";
+            msgEl.textContent = "Lütfen 4 haneli gizli oda kodunu gir!";
             return;
         }
 
         myName = getPlayerName();
         msgEl.style.color = "var(--cyan)";
-        msgEl.textContent = "Oda kontrol ediliyor...";
+        msgEl.textContent = "Odaya bağlanılıyor...";
 
         try {
             const checkRes = await fetch(`${FIREBASE_DB_URL}/rooms/${rawCode}/state.json`);
@@ -1680,7 +1705,8 @@
 
             if (!rawRoomState || !rawRoomState.players) {
                 msgEl.style.color = "var(--danger)";
-                msgEl.textContent = `${rawCode} kodlu açık bir oda bulunamadı!`;
+                msgEl.textContent = "Bu oda artık aktif değil!";
+                fetchActiveRooms();
                 return;
             }
             if (rawRoomState.status === "playing") {
@@ -1707,10 +1733,10 @@
             }
 
             showGameScreen();
-            document.getElementById("room-code-text").textContent = currentRoomCode;
-            document.getElementById("room-privacy-badge").classList.add("hidden");
+            updateRoomBannerPrivacy(gameState.isPublic, currentRoomCode);
             document.getElementById("host-controls").classList.add("hidden");
             renderGameState();
+            fetchActiveRooms();
             startRoomSyncLoop();
         } catch (e) {
             currentRoomCode = "";
@@ -1764,7 +1790,7 @@
         const code = document.getElementById("room-code-text").textContent;
         navigator.clipboard.writeText(code);
         msgEl.style.color = "var(--emerald)";
-        msgEl.textContent = `Oda kodu (${code}) panoya kopyalandı!`;
+        msgEl.textContent = `Gizli oda kodu (${code}) panoya kopyalandı!`;
         setTimeout(() => { msgEl.textContent = ""; }, 2000);
     }
 
