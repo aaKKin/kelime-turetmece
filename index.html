@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kelime Türetmece</title>
+    <title>Kelime Türetmece / Word Chain</title>
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +25,7 @@
             <div class="online-header">
                 <div class="online-title">
                     <span class="pulse-dot"></span>
-                    <span>Aktif Odalar</span>
+                    <span id="ui-active-rooms-title">Aktif Odalar</span>
                 </div>
                 <div class="online-header-right">
                     <button class="refresh-rooms-btn" title="Listeyi Yenile" onclick="fetchActiveRooms()">↻</button>
@@ -33,7 +33,7 @@
                 </div>
             </div>
             <div class="online-list" id="online-rooms-list">
-                <div class="online-empty-msg">Şu an aktif oda yok. Oda kurduğunda burada görünür!</div>
+                <div class="online-empty-msg" id="ui-online-empty">Şu an aktif oda yok. Oda kurduğunda burada görünür!</div>
             </div>
         </aside>
 
@@ -49,16 +49,26 @@
             <!-- EKRAN 1: LOBİ / MOD SEÇİMİ -->
             <div id="lobby-screen">
                 <div class="lobby-box">
-                    <label>Avatarını Seç</label>
-                    <div class="avatar-grid" id="avatar-grid"></div>
-
-                    <label>Anonim Takma Adın (Gizlilik Korumalı)</label>
-                    <div class="lobby-row nick-display-row">
-                        <div class="anon-nick-box" id="anon-nick-display">AtikTilki42</div>
-                        <button type="button" class="btn btn-reroll" onclick="rerollAnonNick()" title="Yeni Rastgele Takma Ad Üret">🎲 Değiştir</button>
+                    <label id="ui-lbl-lang">Oyun Dili / Game Language</label>
+                    <div class="privacy-toggle">
+                        <div class="privacy-btn active-public" id="btn-lang-tr" onclick="setGameLanguage('tr')">
+                            🇹🇷 Türkçe
+                        </div>
+                        <div class="privacy-btn" id="btn-lang-en" onclick="setGameLanguage('en')">
+                            🇬🇧 English
+                        </div>
                     </div>
 
-                    <label>Oda Gizliliği ve Kurulum</label>
+                    <label id="ui-lbl-avatar">Avatarını Seç</label>
+                    <div class="avatar-grid" id="avatar-grid"></div>
+
+                    <label id="ui-lbl-nick">Anonim Takma Adın (Gizlilik Korumalı)</label>
+                    <div class="lobby-row nick-display-row">
+                        <div class="anon-nick-box" id="anon-nick-display">AtikTilki42</div>
+                        <button type="button" class="btn btn-reroll" id="ui-btn-reroll" onclick="rerollAnonNick()">🎲 Değiştir</button>
+                    </div>
+
+                    <label id="ui-lbl-privacy">Oda Gizliliği ve Kurulum</label>
                     <div class="privacy-toggle">
                         <div class="privacy-btn active-public" id="btn-privacy-public" onclick="setRoomPrivacy(true)">
                             🌍 Herkese Açık
@@ -69,25 +79,26 @@
                     </div>
 
                     <div class="lobby-row">
-                        <button class="btn btn-primary" onclick="createRoom()">+ Oda Kur (Arkadaşlar & Botlar)</button>
+                        <button class="btn btn-primary" id="ui-btn-create" onclick="createRoom()">+ Oda Kur (Arkadaşlar & Botlar)</button>
                     </div>
 
-                    <label style="margin-top: 4px;">Gizli Odaya Kodla Katıl</label>
+                    <label style="margin-top: 4px;" id="ui-lbl-join">Gizli Odaya Kodla Katıl (6 Haneli)</label>
                     <div class="lobby-row" style="margin-bottom: 0;">
-                        <input type="text" id="join-code-input" placeholder="4 Haneli Gizli Oda Kodu" maxlength="4" inputmode="numeric">
-                        <button class="btn btn-secondary" onclick="joinRoom()">Katıl</button>
+                        <input type="text" id="join-code-input" placeholder="Örn: A7K9P2" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false" style="text-transform: uppercase; font-family: 'JetBrains Mono', monospace; letter-spacing: 2px;">
+                        <button class="btn btn-secondary" id="ui-btn-join" onclick="joinRoom()">Katıl</button>
                     </div>
                 </div>
 
-                <button class="btn btn-solo" onclick="startQuickBotArena()">⚡ Hızlı Oyun: 3 Bota Karşı Oyna</button>
+                <button class="btn btn-solo" id="ui-btn-solo" onclick="startQuickBotArena()">⚡ Hızlı Oyun: 3 Bota Karşı Oyna</button>
             </div>
 
             <!-- EKRAN 2: AKTİF OYUN ALANI -->
             <div id="game-screen" class="hidden">
                 <div class="room-banner" id="room-banner">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span id="private-code-wrapper" class="hidden">Oda Kodu: <span class="room-code-display" id="room-code-text" title="Kopyalamak için tıkla" onclick="copyRoomCode()">-</span></span>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span id="private-code-wrapper" class="hidden"><span id="ui-lbl-code">Oda Kodu:</span> <span class="room-code-display" id="room-code-text" title="Kopyalamak için tıkla" onclick="copyRoomCode()">-</span></span>
                         <span class="room-privacy-pill" id="room-privacy-badge">🌍 Herkese Açık</span>
+                        <span class="room-privacy-pill" id="room-lang-badge">🇹🇷 TR</span>
                     </div>
                     <span id="connection-count" style="color: var(--text-muted); font-weight: 600;">1 Oyuncu</span>
                 </div>
@@ -99,8 +110,8 @@
                 </div>
 
                 <div class="stats">
-                    <span>Tur: <strong id="turn-count">0</strong></span>
-                    <span>Süre: <strong id="time-text">7.0</strong> sn</span>
+                    <span><span id="ui-lbl-turn">Tur:</span> <strong id="turn-count">0</strong></span>
+                    <span><span id="ui-lbl-time">Süre:</span> <strong id="time-text">7.0</strong> <span id="ui-lbl-sec">sn</span></span>
                 </div>
 
                 <div class="timer-bar-bg">
@@ -119,7 +130,7 @@
                     <button class="btn btn-primary" id="host-start-btn" onclick="hostStartMultiplayer()">Oyunu Başlat</button>
                 </div>
                 
-                <button class="btn btn-solo" onclick="leaveRoom()">Lobiden Çık</button>
+                <button class="btn btn-solo" id="ui-btn-leave" onclick="leaveRoom()">Lobiden Çık</button>
             </div>
 
             <div id="message"></div>
@@ -128,8 +139,8 @@
         <!-- SAĞ PANEL: KELİME ZİNCİRİ VE GLOBAL LİDERLİK TABLOSU -->
         <div class="glass-card history-panel">
             <div class="panel-tabs">
-                <button class="tab-btn active" id="tab-btn-chain" onclick="switchRightTab('chain')">Kelime Zinciri (<span id="total-words-num">0</span>)</button>
-                <button class="tab-btn" id="tab-btn-leaderboard" onclick="switchRightTab('leaderboard')">🏆 İlk 5 Lider</button>
+                <button class="tab-btn active" id="tab-btn-chain" onclick="switchRightTab('chain')"><span id="ui-tab-chain">Kelime Zinciri</span> (<span id="total-words-num">0</span>)</button>
+                <button class="tab-btn" id="tab-btn-leaderboard" onclick="switchRightTab('leaderboard')">🏆 <span id="ui-tab-lb">İlk 5 Lider</span></button>
             </div>
 
             <!-- SEKME 1: KELİME ZİNCİRİ -->
@@ -139,8 +150,8 @@
                         <thead>
                             <tr>
                                 <th class="col-num">#</th>
-                                <th>Oyuncu</th>
-                                <th>Kelime</th>
+                                <th id="ui-th-player">Oyuncu</th>
+                                <th id="ui-th-word">Kelime</th>
                             </tr>
                         </thead>
                         <tbody id="history-tbody"></tbody>
@@ -157,9 +168,9 @@
                         <thead>
                             <tr>
                                 <th class="col-num">#</th>
-                                <th>Oyuncu</th>
-                                <th style="text-align: center;">Galibiyet</th>
-                                <th style="text-align: right;">Kelime</th>
+                                <th id="ui-th-lb-player">Oyuncu</th>
+                                <th style="text-align: center;" id="ui-th-lb-wins">Galibiyet</th>
+                                <th style="text-align: right;" id="ui-th-lb-words">Kelime</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-tbody"></tbody>
