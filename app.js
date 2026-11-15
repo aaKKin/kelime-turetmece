@@ -1,9 +1,55 @@
 // --- FIREBASE VERİTABANI ADRESİN ---
 const FIREBASE_DB_URL = "https://kelime-turetmece-c151c-default-rtdb.europe-west1.firebasedatabase.app";
 const TURN_DURATION_MS = 7000;
-const HOST_GRACE_MS = 800; // Ağ gecikmesi toleransı (0.8 sn)
+const HOST_GRACE_MS = 800;
 
-// --- GÜVENLİK VE TEMİZLEME YARDIMCILARI (XSS & GİRDİ FİLTRESİ) ---
+// --- RASTGELE ANONİM TAKMA AD SİSTEMİ (GERÇEK İSİM GİRİŞİ KAPALI) ---
+const nickAdjectives = [
+    "Hızlı", "Gizemli", "Atik", "Zeki", "Süper", "Keskin", "Sessiz", "Çevik",
+    "Usta", "Gölge", "Kozmik", "Buzul", "Fırtına", "Kıvrak", "Şimşek", "Asil",
+    "Parlak", "Çılgın", "Bilge", "Kızıl", "Mavi", "Altın", "Demir", "Yıldırım"
+];
+const nickNouns = [
+    "Tilki", "Baykuş", "Kurt", "Kartal", "Panda", "Ejder", "Vaşak", "Şahin",
+    "Gezgin", "Kaşif", "Avcı", "Korsan", "Ninja", "Yıldız", "Kuzgun", "Pars",
+    "Kaplan", "Aslan", "Yunus", "Kutup", "Süvari", "Ozan", "Kahin", "Usta"
+];
+
+const validNickPattern = new RegExp(`^(${nickAdjectives.join("|")})(${nickNouns.join("|")})\\d{2}$`);
+
+function generateAnonNick() {
+    const adj = nickAdjectives[Math.floor(Math.random() * nickAdjectives.length)];
+    const noun = nickNouns[Math.floor(Math.random() * nickNouns.length)];
+    const num = Math.floor(10 + Math.random() * 89);
+    return `${adj}${noun}${num}`;
+}
+
+let currentAnonNick = generateAnonNick();
+
+function initAnonNickBox() {
+    const displayEl = document.getElementById("anon-nick-display");
+    if (displayEl) displayEl.textContent = currentAnonNick;
+}
+
+function rerollAnonNick() {
+    let nextNick = generateAnonNick();
+    while (nextNick === currentAnonNick) {
+        nextNick = generateAnonNick();
+    }
+    currentAnonNick = nextNick;
+    const displayEl = document.getElementById("anon-nick-display");
+    if (displayEl) displayEl.textContent = currentAnonNick;
+}
+
+function sanitizeAnonNick(raw, fallback = "GezginTilki10") {
+    const cleaned = String(raw ?? "").trim();
+    if (validNickPattern.test(cleaned) || cleaned === "Sistem" || /^Bot/.test(cleaned)) {
+        return cleaned;
+    }
+    return fallback;
+}
+
+// --- GÜVENLİK VE TEMİZLEME YARDIMCILARI ---
 const avatarOptions = ["🦊", "🐱", "🐺", "🦁", "🐼", "🐸", "🦉", "🐲", "👾", "🚀", "🎸", "⚡"];
 
 function escapeHTML(str) {
@@ -13,14 +59,6 @@ function escapeHTML(str) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
-}
-
-function sanitizeNickInput(raw) {
-    return String(raw ?? "")
-        .replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ0-9 _-]/g, "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 15);
 }
 
 function sanitizeAvatar(rawAvatar, fallback = "🎮") {
@@ -34,40 +72,22 @@ function sanitizeWord(rawWord) {
         .slice(0, 30);
 }
 
-// --- SUNUCU SAATİ FARKI (GECİKME SENKRONİZASYONU) ---
+// --- SUNUCU SAATİ FARKI (SIFIR YAZMA MALİYETLİ HTTP DATE SENKRONİZASYONU) ---
 let serverTimeOffset = 0;
 function getSyncedNow() {
     return Date.now() + serverTimeOffset;
 }
 
-// --- RASTGELE ANONİM TAKMA AD ÜRETİCİ ---
-const nickAdjectives = [
-    "Hızlı", "Gizemli", "Atik", "Zeki", "Süper", "Keskin", "Sessiz", "Çevik",
-    "Usta", "Gölge", "Kozmik", "Buzul", "Fırtına", "Kıvrak", "Şimşek", "Asil"
-];
-const nickNouns = [
-    "Tilki", "Baykuş", "Kurt", "Kartal", "Panda", "Ejder", "Vaşak", "Şahin",
-    "Gezgin", "Kaşif", "Avcı", "Bilge", "Korsan", "Ninja", "Yıldız", "Kuzgun"
-];
-
-function generateAnonNick() {
-    const adj = nickAdjectives[Math.floor(Math.random() * nickAdjectives.length)];
-    const noun = nickNouns[Math.floor(Math.random() * nickNouns.length)];
-    const num = Math.floor(10 + Math.random() * 89);
-    return `${adj}${noun}${num}`;
-}
-
-let suggestedAnonNick = generateAnonNick();
-
-function initAnonPlaceholder() {
-    const nameInput = document.getElementById("player-name");
-    nameInput.placeholder = `Örn: ${suggestedAnonNick}`;
-    nameInput.addEventListener("input", () => {
-        const filtered = nameInput.value.replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ0-9 _-]/g, "").slice(0, 15);
-        if (nameInput.value !== filtered) {
-            nameInput.value = filtered;
+function syncClockFromHeader(response) {
+    try {
+        const dateHeader = response.headers.get("Date");
+        if (dateHeader) {
+            const serverMs = Date.parse(dateHeader);
+            if (!Number.isNaN(serverMs)) {
+                serverTimeOffset = serverMs - Date.now();
+            }
         }
-    });
+    } catch (e) {}
 }
 
 // --- AVATAR SEÇİCİ ---
@@ -126,37 +146,14 @@ function switchRightTab(tabName) {
     }
 }
 
-// --- AKTİF ODALAR / LOBİLER LİSTESİ ---
+// --- AKTİF ODALAR / LOBİLER LİSTESİ (KOTA DOSTU) ---
 let activeRoomsPollInterval = null;
 let isLeavingRoom = false;
-
-async function getFirebaseServerNow() {
-    const t0 = Date.now();
-    try {
-        const res = await fetch(`${FIREBASE_DB_URL}/serverClock.json?t=${t0}`, {
-            method: "PUT",
-            cache: "no-store",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ".sv": "timestamp" })
-        });
-        const t1 = Date.now();
-        if (res.ok) {
-            const ts = await res.json();
-            if (typeof ts === "number") {
-                const rtt = t1 - t0;
-                serverTimeOffset = ts - (t0 + Math.round(rtt / 2));
-                return ts;
-            }
-        }
-    } catch (e) {}
-    return Date.now();
-}
 
 async function sendRoomHeartbeat() {
     if (!currentRoomCode || !isHost || isLocalSolo || isLeavingRoom) return;
 
     try {
-        // Gizli odaların kodu aktif odalar listesinde ifşa edilmez
         const publicCodeField = isRoomPublic ? currentRoomCode : "PRIVATE";
         await fetch(`${FIREBASE_DB_URL}/activeRooms/${currentRoomCode}.json`, {
             method: "PUT",
@@ -164,7 +161,7 @@ async function sendRoomHeartbeat() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 code: publicCodeField,
-                hostName: sanitizeNickInput(myName) || "Oyuncu",
+                hostName: sanitizeAnonNick(myName),
                 hostAvatar: sanitizeAvatar(selectedAvatar),
                 isPublic: Boolean(isRoomPublic),
                 status: gameState.status,
@@ -196,12 +193,14 @@ async function removeMyActiveRoom() {
 }
 
 async function fetchActiveRooms() {
+    if (document.hidden) return;
     try {
-        const serverNow = await getFirebaseServerNow();
         const res = await fetch(`${FIREBASE_DB_URL}/activeRooms.json?t=${Date.now()}`, {
             cache: "no-store"
         });
         if (!res.ok) return;
+        syncClockFromHeader(res);
+        const serverNow = getSyncedNow();
         const data = await res.json();
         const validRooms = [];
 
@@ -236,7 +235,7 @@ function renderActiveRooms(rooms) {
     rooms.forEach(room => {
         const safeKey = String(room.roomKey || "").replace(/\D/g, "").slice(0, 4);
         const safeCode = String(room.code || "").replace(/\D/g, "").slice(0, 4);
-        const safeHostName = escapeHTML(sanitizeNickInput(room.hostName) || "Oyuncu");
+        const safeHostName = escapeHTML(sanitizeAnonNick(room.hostName));
         const safeHostAvatar = sanitizeAvatar(room.hostAvatar, "🎮");
         const safePlayerCount = Math.min(6, Math.max(1, Number(room.playerCount) || 1));
 
@@ -281,12 +280,16 @@ function renderActiveRooms(rooms) {
 function startActiveRoomsMonitor() {
     fetchActiveRooms();
     clearInterval(activeRoomsPollInterval);
+    // Kota dostu 12 saniyelik yenileme döngüsü
     activeRoomsPollInterval = setInterval(async () => {
+        if (document.hidden) return;
         if (isHost && currentRoomCode && !isLocalSolo && !isLeavingRoom) {
             await sendRoomHeartbeat();
         }
-        await fetchActiveRooms();
-    }, 4000);
+        if (!currentRoomCode || gameState.status === "lobby") {
+            await fetchActiveRooms();
+        }
+    }, 12000);
 
     document.addEventListener("visibilitychange", async () => {
         if (!document.hidden) {
@@ -309,8 +312,7 @@ function startActiveRoomsMonitor() {
 let leaderboardData = {};
 
 function sanitizeFirebaseKey(name) {
-    const clean = sanitizeNickInput(name) || "Oyuncu";
-    return clean.replace(/[.#$\[\]\/]/g, "_").trim();
+    return sanitizeAnonNick(name).replace(/[.#$\[\]\/]/g, "_").trim();
 }
 
 async function fetchGlobalLeaderboard() {
@@ -334,7 +336,7 @@ async function recordMatchStats(winnerPlayer, historyList) {
 
     safeHistory.forEach(item => {
         if (item.senderId === "sys" || item.isBot) return;
-        const cleanName = sanitizeNickInput(item.senderName) || "Oyuncu";
+        const cleanName = sanitizeAnonNick(item.senderName);
         const key = sanitizeFirebaseKey(cleanName);
         if (!matchSummary[key]) {
             matchSummary[key] = {
@@ -349,7 +351,7 @@ async function recordMatchStats(winnerPlayer, historyList) {
     });
 
     if (winnerPlayer && !winnerPlayer.isBot) {
-        const cleanWinnerName = sanitizeNickInput(winnerPlayer.name) || "Oyuncu";
+        const cleanWinnerName = sanitizeAnonNick(winnerPlayer.name);
         const wKey = sanitizeFirebaseKey(cleanWinnerName);
         if (!matchSummary[wKey]) {
             matchSummary[wKey] = {
@@ -403,7 +405,7 @@ function renderLeaderboard() {
     tbody.innerHTML = "";
 
     const topFive = Object.values(leaderboardData)
-        .filter(entry => entry && typeof entry === "object" && !entry.isBot)
+        .filter(entry => entry && typeof entry === "object" && !entry.isBot && validNickPattern.test(String(entry.name || "")))
         .sort((a, b) => {
             if ((Number(b.wins) || 0) !== (Number(a.wins) || 0)) return (Number(b.wins) || 0) - (Number(a.wins) || 0);
             return (Number(b.words) || 0) - (Number(a.words) || 0);
@@ -424,7 +426,7 @@ function renderLeaderboard() {
         else if (idx === 1) rankDisplay = "🥈";
         else if (idx === 2) rankDisplay = "🥉";
 
-        const cleanName = sanitizeNickInput(entry.name) || "Oyuncu";
+        const cleanName = sanitizeAnonNick(entry.name);
         const safeName = escapeHTML(cleanName);
         const safeAvatar = sanitizeAvatar(entry.avatar, "🎮");
         const safeWins = Math.max(0, Number(entry.wins) || 0);
@@ -601,7 +603,7 @@ async function loadDictionary() {
 let isHost = false;
 let isLocalSolo = false;
 let myId = "p_" + Math.random().toString(36).substring(2, 10);
-let myName = "Oyuncu";
+let myName = currentAnonNick;
 let currentRoomCode = "";
 let syncInterval = null;
 let lastRenderedTurnNumber = -1;
@@ -626,7 +628,7 @@ function normalizeGameState(raw) {
     const rawPlayers = Array.isArray(s.players) ? s.players : [];
     const safePlayers = rawPlayers.slice(0, 6).map(p => ({
         id: String(p?.id || "").replace(/[^a-zA-Z0-9._-]/g, ""),
-        name: sanitizeNickInput(p?.name) || "Oyuncu",
+        name: sanitizeAnonNick(p?.name),
         avatar: sanitizeAvatar(p?.avatar, "🎮"),
         isBot: Boolean(p?.isBot),
         skill: typeof p?.skill === "number" ? p.skill : 0.85,
@@ -636,7 +638,7 @@ function normalizeGameState(raw) {
     const rawHistory = Array.isArray(s.history) ? s.history : [];
     const safeHistory = rawHistory.slice(-200).map(h => ({
         word: sanitizeWord(h?.word),
-        senderName: sanitizeNickInput(h?.senderName) || "Oyuncu",
+        senderName: sanitizeAnonNick(h?.senderName),
         senderAvatar: sanitizeAvatar(h?.senderAvatar, "🎮"),
         senderId: String(h?.senderId || "").replace(/[^a-zA-Z0-9._-]/g, ""),
         isBot: Boolean(h?.isBot)
@@ -665,8 +667,7 @@ const inputEl = document.getElementById("word-input");
 const eliminatedBannerEl = document.getElementById("eliminated-banner");
 
 function getPlayerName() {
-    const val = sanitizeNickInput(document.getElementById("player-name").value);
-    return val || suggestedAnonNick;
+    return sanitizeAnonNick(currentAnonNick);
 }
 
 function showGameScreen() {
@@ -711,6 +712,7 @@ function startRoomSyncLoop() {
     clearInterval(syncInterval);
     const loopRoomCode = currentRoomCode;
 
+    // Kota dostu 800ms senkronizasyon döngüsü
     syncInterval = setInterval(async () => {
         if (!currentRoomCode || currentRoomCode !== loopRoomCode || isLocalSolo || isSwitchingRoom) return;
         try {
@@ -721,6 +723,7 @@ function startRoomSyncLoop() {
                 ]);
 
                 if (currentRoomCode !== loopRoomCode || isSwitchingRoom) return;
+                syncClockFromHeader(joinRes);
 
                 const joins = await joinRes.json();
                 let stateChanged = false;
@@ -731,7 +734,7 @@ function startRoomSyncLoop() {
                         if (pdata && safePid && !gameState.players.some(p => p.id === safePid) && gameState.players.length < 6) {
                             gameState.players.push({
                                 id: safePid,
-                                name: sanitizeNickInput(pdata.name) || "Oyuncu",
+                                name: sanitizeAnonNick(pdata.name),
                                 avatar: sanitizeAvatar(pdata.avatar, "🎮"),
                                 isBot: false,
                                 eliminated: false
@@ -764,6 +767,7 @@ function startRoomSyncLoop() {
                 ]);
 
                 if (currentRoomCode !== loopRoomCode || isSwitchingRoom) return;
+                syncClockFromHeader(stateRes);
 
                 const remoteState = await stateRes.json();
                 const remoteErr = await errRes.json();
@@ -805,7 +809,7 @@ function startRoomSyncLoop() {
                 }
             }
         } catch (e) {}
-    }, 500);
+    }, 800);
 }
 
 async function leaveRoom() {
@@ -842,14 +846,12 @@ async function createRoom() {
     msgEl.style.color = "var(--cyan)";
     msgEl.textContent = "Oda oluşturuluyor...";
 
-    const now = await getFirebaseServerNow();
-
     gameState = normalizeGameState({
         status: "lobby",
         isPublic: isRoomPublic,
         players: [{ id: myId, name: myName, avatar: sanitizeAvatar(selectedAvatar), isBot: false, eliminated: false }],
         turnNumber: 0,
-        turnStartedAt: now
+        turnStartedAt: getSyncedNow()
     });
 
     try {
@@ -860,6 +862,7 @@ async function createRoom() {
             body: JSON.stringify({ state: gameState })
         });
         if (!res.ok) throw new Error();
+        syncClockFromHeader(res);
 
         msgEl.textContent = "";
         await sendRoomHeartbeat();
@@ -896,9 +899,9 @@ async function joinRoom(directCode = null) {
     msgEl.textContent = "Odaya bağlanılıyor...";
 
     try {
-        await getFirebaseServerNow();
         const checkRes = await fetch(`${FIREBASE_DB_URL}/rooms/${rawCode}/state.json?t=${Date.now()}`, { cache: "no-store" });
         if (!checkRes.ok) throw new Error();
+        syncClockFromHeader(checkRes);
         const rawRoomState = await checkRes.json();
 
         if (!rawRoomState || !Array.isArray(rawRoomState.players)) {
@@ -1204,7 +1207,7 @@ async function validateAndProcessWord(rawWord, senderId, submittedTurn = null) {
     gameState.usedWords.push(userWord);
     gameState.history.push({
         word: userWord,
-        senderName: sanitizeNickInput(activePlayer.name) || "Oyuncu",
+        senderName: sanitizeAnonNick(activePlayer.name),
         senderAvatar: sanitizeAvatar(activePlayer.avatar, "🎮"),
         senderId: senderId,
         isBot: activePlayer.isBot
@@ -1280,7 +1283,7 @@ async function handleTimeout() {
     if (alivePlayers.length <= 1) {
         gameState.status = "gameover";
         const winner = alivePlayers[0];
-        const safeWinnerName = winner ? (sanitizeNickInput(winner.name) || "Oyuncu") : "";
+        const safeWinnerName = winner ? sanitizeAnonNick(winner.name) : "";
         const safeWinnerAvatar = winner ? sanitizeAvatar(winner.avatar, "🎮") : "";
         gameState.winnerText = winner
             ? `Oyun Bitti! Kazanan: ${safeWinnerAvatar} ${safeWinnerName} 🏆`
@@ -1343,7 +1346,7 @@ function renderGameState() {
         }
         if (p.eliminated) chip.classList.add("eliminated");
 
-        const cleanName = sanitizeNickInput(p.name) || "Oyuncu";
+        const cleanName = sanitizeAnonNick(p.name);
         const safeAvatar = sanitizeAvatar(p.avatar, "🎮");
         const label = p.id === myId ? `${cleanName} (Sen)` : cleanName;
         chip.innerHTML = `<span class="chip-avatar">${safeAvatar}</span><span>${escapeHTML(label)}</span>`;
@@ -1392,7 +1395,7 @@ function renderGameState() {
                 document.getElementById("current-word-box").scrollIntoView({ behavior: "smooth", block: "center" });
             }
         } else {
-            const activeName = activePlayer ? (sanitizeNickInput(activePlayer.name) || "Oyuncu") : "";
+            const activeName = activePlayer ? sanitizeAnonNick(activePlayer.name) : "";
             const activeAvatar = activePlayer ? sanitizeAvatar(activePlayer.avatar, "🎮") : "";
             const statusText = activePlayer && activePlayer.isBot
                 ? `${activeAvatar} ${activeName} düşünüyor...`
@@ -1420,7 +1423,7 @@ function renderGameState() {
             const isMe = item.senderId === myId;
             const badgeClass = isMe ? "badge-me" : (item.isBot ? "badge-bot" : "");
             const avatar = sanitizeAvatar(item.senderAvatar, "🎮");
-            const cleanSenderName = escapeHTML(sanitizeNickInput(item.senderName) || "Oyuncu");
+            const cleanSenderName = escapeHTML(sanitizeAnonNick(item.senderName));
             const displayName = isMe ? `${avatar} Sen` : `${avatar} ${cleanSenderName}`;
             tr.innerHTML = `
                 <td class="col-num">${i + 1}</td>
@@ -1438,7 +1441,7 @@ function renderGameState() {
     }
 }
 
-initAnonPlaceholder();
+initAnonNickBox();
 initAvatarSelector();
 startActiveRoomsMonitor();
 fetchGlobalLeaderboard();
