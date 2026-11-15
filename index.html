@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-
-    <link rel="icon" type="image/png" href="logo.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kelime Türetmece</title>
+    <link rel="icon" type="image/png" href="logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -29,7 +28,7 @@
                     <span>Aktif Odalar</span>
                 </div>
                 <div class="online-header-right">
-                    <button class="refresh-rooms-btn" title="Listeyi Yenile" onclick="fetchActiveRooms(true)">↻</button>
+                    <button class="refresh-rooms-btn" title="Listeyi Yenile" onclick="fetchActiveRooms()">↻</button>
                     <span class="online-count-badge" id="online-count-badge">0</span>
                 </div>
             </div>
@@ -53,9 +52,10 @@
                     <label>Avatarını Seç</label>
                     <div class="avatar-grid" id="avatar-grid"></div>
 
-                    <label>Takma Adın</label>
-                    <div class="lobby-row">
-                        <input type="text" id="player-name" placeholder="Takma adın..." maxlength="15">
+                    <label>Anonim Takma Adın (Gizlilik Korumalı)</label>
+                    <div class="lobby-row nick-display-row">
+                        <div class="anon-nick-box" id="anon-nick-display">AtikTilki42</div>
+                        <button type="button" class="btn btn-reroll" onclick="rerollAnonNick()" title="Yeni Rastgele Takma Ad Üret">🎲 Değiştir</button>
                     </div>
 
                     <label>Oda Gizliliği ve Kurulum</label>
