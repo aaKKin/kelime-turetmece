@@ -212,7 +212,6 @@ const nickNounsTR = [
     "Aslan", "Yunus", "Kutup", "Süvari", "Ozan", "Kahin", "Atom", "Rüzgar"
 ];
 
-// Max 6 harf sıfat + Max 6 harf isim + 2 rakam = En fazla 14 karakter!
 const nickAdjectivesEN = [
     "Swift", "Shadow", "Clever", "Hyper", "Sharp", "Silent", "Agile", "Cosmic",
     "Frost", "Storm", "Flash", "Noble", "Bright", "Wild", "Wise", "Ruby",
@@ -227,6 +226,7 @@ const nickNounsEN = [
 const allAdjectives = [...nickAdjectivesTR, ...nickAdjectivesEN];
 const allNouns = [...nickNounsTR, ...nickNounsEN];
 const validNickPattern = new RegExp(`^(${allAdjectives.join("|")})(${allNouns.join("|")})\\d{2}$`);
+const validBotNamePattern = /^(Bot (Alp|Derin|Mert|Ece|Kaan)|Bot-\d{2})$/;
 
 function generateAnonNick(lang = currentLang) {
     const adjs = lang === "en" ? nickAdjectivesEN : nickAdjectivesTR;
@@ -261,7 +261,10 @@ function rerollAnonNick() {
 
 function sanitizeAnonNick(raw, fallback = "AtikTilki10") {
     const cleaned = String(raw ?? "").trim();
-    if (cleaned.length <= 18 && (validNickPattern.test(cleaned) || cleaned === "Sistem" || cleaned === "System" || /^Bot/.test(cleaned))) {
+    if (
+        cleaned.length <= 18 &&
+        (validNickPattern.test(cleaned) || cleaned === "Sistem" || cleaned === "System" || validBotNamePattern.test(cleaned))
+    ) {
         return cleaned;
     }
     return fallback;
@@ -283,7 +286,7 @@ function setGameLanguage(lang, rerollNick = true) {
     }
 
     applyLanguageToUI();
-    updateDictStatusBadge();
+    ensureDictionaryLoaded(currentLang);
     fetchActiveRooms();
     renderLeaderboard();
 }
@@ -344,7 +347,7 @@ function sanitizeWord(rawWord, lang = currentLang) {
     return toTurkishUpper(String(rawWord ?? "")).replace(/[^A-ZÇĞİÖŞÜ]/g, "").slice(0, 30);
 }
 
-// --- SUNUCU SAATİ FARKI (SIFIR YAZMA MALİYETLİ & CORS YEDEKLİ) ---
+// --- SUNUCU SAATİ FARKI (SIFIR YAZMA MALİYETLİ) ---
 let serverTimeOffset = 0;
 function getSyncedNow() {
     return Date.now() + serverTimeOffset;
@@ -985,6 +988,8 @@ const botProfiles = [
 
 let dictionarySetTR = new Set(commonBotWordsTR);
 let dictionarySetEN = new Set(commonBotWordsEN);
+let isLoadedTR = false;
+let isLoadedEN = false;
 
 const cleanBotWordsTR = commonBotWordsTR.filter(w => !w.endsWith("Ğ") && !turkishCities.has(w));
 const cleanBotWordsEN = commonBotWordsEN.filter(w => !w.endsWith("X") && !w.endsWith("Q") && !majorWorldCitiesEN.has(w));
@@ -999,8 +1004,11 @@ function updateDictStatusBadge() {
     if (el) el.textContent = t("dictReady", size);
 }
 
-async function loadDictionaries() {
-    const loadTR = async () => {
+async function ensureDictionaryLoaded(lang = currentLang) {
+    updateDictStatusBadge();
+    if (lang === "tr") {
+        if (isLoadedTR) return;
+        isLoadedTR = true;
         const controller = new AbortController();
         const tid = setTimeout(() => controller.abort(), 3500);
         try {
@@ -1016,11 +1024,12 @@ async function loadDictionaries() {
                 }
             });
         } catch (err) {
+            isLoadedTR = false;
             console.warn("TR external dictionary fallback used:", err);
         }
-    };
-
-    const loadEN = async () => {
+    } else if (lang === "en") {
+        if (isLoadedEN) return;
+        isLoadedEN = true;
         const controller = new AbortController();
         const tid = setTimeout(() => controller.abort(), 3500);
         try {
@@ -1036,11 +1045,10 @@ async function loadDictionaries() {
                 }
             });
         } catch (err) {
+            isLoadedEN = false;
             console.warn("EN external dictionary fallback used:", err);
         }
-    };
-
-    await Promise.all([loadTR(), loadEN()]);
+    }
     updateDictStatusBadge();
 }
 
@@ -1286,6 +1294,7 @@ function startQuickBotArena() {
     isLocalSolo = true;
     myName = getPlayerName();
     gameState.lang = currentLang;
+    ensureDictionaryLoaded(currentLang);
     showGameScreen();
     document.getElementById("room-banner").classList.add("hidden");
 
@@ -1303,6 +1312,7 @@ async function createRoom() {
     isLeavingRoom = false;
     myName = getPlayerName();
     currentRoomCode = generateRoomCode();
+    ensureDictionaryLoaded(currentLang);
 
     msgEl.style.color = "var(--cyan)";
     msgEl.textContent = t("errCreating");
@@ -1409,6 +1419,7 @@ async function joinRoom(directCode = null) {
             setGameLanguage(gameState.lang, true);
             myName = getPlayerName();
         }
+        ensureDictionaryLoaded(gameState.lang);
 
         const joinPut = await fetch(`${FIREBASE_DB_URL}/rooms/${currentRoomCode}/joins/${encodeURIComponent(myId)}.json`, {
             method: "PUT",
@@ -1929,4 +1940,4 @@ initAvatarSelector();
 applyLanguageToUI();
 startActiveRoomsMonitor();
 fetchGlobalLeaderboard();
-loadDictionaries();
+ensureDictionaryLoaded("tr");
