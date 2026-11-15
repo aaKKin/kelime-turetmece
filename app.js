@@ -200,7 +200,7 @@ function sanitizeRoomCode(raw) {
         .slice(0, 6);
 }
 
-// --- RASTGELE ANONİM TAKMA AD SİSTEMİ (TR & EN) ---
+// --- RASTGELE ANONİM TAKMA AD SİSTEMİ (MAX 15 KARAKTER GARANTİLİ) ---
 const nickAdjectivesTR = [
     "Hızlı", "Gizem", "Atik", "Zeki", "Süper", "Keskin", "Sessiz", "Çevik",
     "Usta", "Gölge", "Kozmik", "Buzul", "Fırtına", "Kıvrak", "Şimşek", "Asil",
@@ -212,15 +212,16 @@ const nickNounsTR = [
     "Aslan", "Yunus", "Kutup", "Süvari", "Ozan", "Kahin", "Atom", "Rüzgar"
 ];
 
+// Max 6 harf sıfat + Max 6 harf isim + 2 rakam = En fazla 14 karakter!
 const nickAdjectivesEN = [
     "Swift", "Shadow", "Clever", "Hyper", "Sharp", "Silent", "Agile", "Cosmic",
-    "Frost", "Storm", "Flash", "Noble", "Bright", "Wild", "Wise", "Crimson",
+    "Frost", "Storm", "Flash", "Noble", "Bright", "Wild", "Wise", "Ruby",
     "Azure", "Golden", "Iron", "Star", "Mystic", "Turbo", "Solar", "Cyber"
 ];
 const nickNounsEN = [
     "Fox", "Owl", "Wolf", "Eagle", "Panda", "Dragon", "Lynx", "Falcon",
     "Rover", "Scout", "Hunter", "Pirate", "Ninja", "Raven", "Tiger", "Lion",
-    "Dolphin", "Knight", "Bard", "Oracle", "Atom", "Vortex", "Spark", "Hawk"
+    "Shark", "Knight", "Bard", "Oracle", "Atom", "Vortex", "Spark", "Hawk"
 ];
 
 const allAdjectives = [...nickAdjectivesTR, ...nickAdjectivesEN];
@@ -230,10 +231,14 @@ const validNickPattern = new RegExp(`^(${allAdjectives.join("|")})(${allNouns.jo
 function generateAnonNick(lang = currentLang) {
     const adjs = lang === "en" ? nickAdjectivesEN : nickAdjectivesTR;
     const nouns = lang === "en" ? nickNounsEN : nickNounsTR;
-    const adj = adjs[Math.floor(Math.random() * adjs.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    const num = Math.floor(10 + Math.random() * 89);
-    return `${adj}${noun}${num}`;
+    for (let attempt = 0; attempt < 25; attempt++) {
+        const adj = adjs[Math.floor(Math.random() * adjs.length)];
+        const noun = nouns[Math.floor(Math.random() * nouns.length)];
+        const num = Math.floor(10 + Math.random() * 89);
+        const candidate = `${adj}${noun}${num}`;
+        if (candidate.length <= 15) return candidate;
+    }
+    return lang === "en" ? "SwiftFox42" : "AtikTilki42";
 }
 
 let currentAnonNick = generateAnonNick("tr");
@@ -256,7 +261,7 @@ function rerollAnonNick() {
 
 function sanitizeAnonNick(raw, fallback = "AtikTilki10") {
     const cleaned = String(raw ?? "").trim();
-    if (validNickPattern.test(cleaned) || cleaned === "Sistem" || cleaned === "System" || /^Bot/.test(cleaned)) {
+    if (cleaned.length <= 18 && (validNickPattern.test(cleaned) || cleaned === "Sistem" || cleaned === "System" || /^Bot/.test(cleaned))) {
         return cleaned;
     }
     return fallback;
@@ -339,7 +344,7 @@ function sanitizeWord(rawWord, lang = currentLang) {
     return toTurkishUpper(String(rawWord ?? "")).replace(/[^A-ZÇĞİÖŞÜ]/g, "").slice(0, 30);
 }
 
-// --- SUNUCU SAATİ FARKI (SIFIR YAZMA MALİYETLİ) ---
+// --- SUNUCU SAATİ FARKI (SIFIR YAZMA MALİYETLİ & CORS YEDEKLİ) ---
 let serverTimeOffset = 0;
 function getSyncedNow() {
     return Date.now() + serverTimeOffset;
@@ -347,14 +352,16 @@ function getSyncedNow() {
 
 function syncClockFromHeader(response) {
     try {
-        const dateHeader = response.headers.get("Date");
+        const dateHeader = response && response.headers ? response.headers.get("Date") : null;
         if (dateHeader) {
             const serverMs = Date.parse(dateHeader);
             if (!Number.isNaN(serverMs)) {
                 serverTimeOffset = serverMs - Date.now();
             }
         }
-    } catch (e) {}
+    } catch (err) {
+        console.warn("Clock header sync skipped:", err);
+    }
 }
 
 async function initServerTimeSync() {
@@ -367,7 +374,9 @@ async function initServerTimeSync() {
             const serverMs = Date.parse(dateHeader) + Math.round((t1 - t0) / 2);
             if (!Number.isNaN(serverMs)) serverTimeOffset = serverMs - t1;
         }
-    } catch (e) {}
+    } catch (err) {
+        console.warn("Initial clock sync unavailable:", err);
+    }
 }
 
 // --- AVATAR SEÇİCİ & GİRİŞ FİLTRESİ ---
@@ -443,7 +452,7 @@ async function sendRoomHeartbeat() {
 
     try {
         const publicCodeField = isRoomPublic ? currentRoomCode : "PRIVATE";
-        await fetch(`${FIREBASE_DB_URL}/activeRooms/${currentRoomCode}.json`, {
+        const res = await fetch(`${FIREBASE_DB_URL}/activeRooms/${currentRoomCode}.json`, {
             method: "PUT",
             cache: "no-store",
             headers: { "Content-Type": "application/json" },
@@ -458,7 +467,10 @@ async function sendRoomHeartbeat() {
                 lastSeen: { ".sv": "timestamp" }
             })
         });
-    } catch (e) {}
+        if (!res.ok) console.warn("Heartbeat rejected:", res.status);
+    } catch (err) {
+        console.warn("Heartbeat network error:", err);
+    }
 }
 
 async function removeRoomByCode(code, wasHost) {
@@ -473,7 +485,9 @@ async function removeRoomByCode(code, wasHost) {
         } else {
             await fetch(`${FIREBASE_DB_URL}/rooms/${safeCode}/joins/${encodeURIComponent(myId)}.json`, { method: "DELETE", keepalive: true });
         }
-    } catch (e) {}
+    } catch (err) {
+        console.warn("Room cleanup failed:", err);
+    }
 }
 
 async function removeMyActiveRoom() {
@@ -508,7 +522,9 @@ async function fetchActiveRooms() {
         }
 
         renderActiveRooms(validRooms);
-    } catch (e) {}
+    } catch (err) {
+        console.warn("Active rooms fetch failed:", err);
+    }
 }
 
 function renderActiveRooms(rooms) {
@@ -611,12 +627,13 @@ async function fetchGlobalLeaderboard() {
     const infoEl = document.getElementById("lb-sync-info");
     try {
         const res = await fetch(`${FIREBASE_DB_URL}/leaderboard.json?t=${Date.now()}`, { cache: "no-store" });
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         leaderboardData = (data && typeof data === "object") ? data : {};
         infoEl.textContent = t("lbLive");
         renderLeaderboard();
-    } catch (e) {
+    } catch (err) {
+        console.warn("Leaderboard fetch failed:", err);
         infoEl.textContent = t("lbErr");
         renderLeaderboard();
     }
@@ -680,12 +697,15 @@ async function recordMatchStats(winnerPlayer, historyList) {
                 words: (Number(currentData.words) || 0) + delta.wordsToAdd
             };
 
-            await fetch(`${FIREBASE_DB_URL}/leaderboard/${encodeURIComponent(key)}.json`, {
+            const putRes = await fetch(`${FIREBASE_DB_URL}/leaderboard/${encodeURIComponent(key)}.json`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(updatedRecord)
             });
-        } catch (e) {}
+            if (!putRes.ok) console.warn("Leaderboard write rejected:", putRes.status);
+        } catch (err) {
+            console.warn("Leaderboard update error:", err);
+        }
     }
 
     await fetchGlobalLeaderboard();
@@ -986,7 +1006,7 @@ async function loadDictionaries() {
         try {
             const res = await fetch("https://cdn.jsdelivr.net/gh/mertemin/turkish-word-list@master/words.txt", { signal: controller.signal });
             clearTimeout(tid);
-            if (!res.ok) throw new Error();
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const text = await res.text();
             text.split(/\r?\n/).forEach(line => {
                 const w = line.trim();
@@ -995,7 +1015,9 @@ async function loadDictionaries() {
                     if (!turkishCities.has(upper)) dictionarySetTR.add(upper);
                 }
             });
-        } catch (e) {}
+        } catch (err) {
+            console.warn("TR external dictionary fallback used:", err);
+        }
     };
 
     const loadEN = async () => {
@@ -1004,7 +1026,7 @@ async function loadDictionaries() {
         try {
             const res = await fetch("https://cdn.jsdelivr.net/gh/dwyl/english-words@master/words_alpha.txt", { signal: controller.signal });
             clearTimeout(tid);
-            if (!res.ok) throw new Error();
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const text = await res.text();
             text.split(/\r?\n/).forEach(line => {
                 const w = line.trim();
@@ -1013,7 +1035,9 @@ async function loadDictionaries() {
                     if (!majorWorldCitiesEN.has(upper)) dictionarySetEN.add(upper);
                 }
             });
-        } catch (e) {}
+        } catch (err) {
+            console.warn("EN external dictionary fallback used:", err);
+        }
     };
 
     await Promise.all([loadTR(), loadEN()]);
@@ -1127,14 +1151,17 @@ function updateRoomBannerPrivacy(publicFlag, code, lang = currentLang) {
 async function pushRoomStateToFirebase() {
     if (!currentRoomCode || isLocalSolo || isSwitchingRoom) return;
     try {
-        await fetch(`${FIREBASE_DB_URL}/rooms/${currentRoomCode}/state.json`, {
+        const res = await fetch(`${FIREBASE_DB_URL}/rooms/${currentRoomCode}/state.json`, {
             method: "PUT",
             cache: "no-store",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(gameState)
         });
+        if (!res.ok) console.warn("State push rejected:", res.status);
         await sendRoomHeartbeat();
-    } catch (e) {}
+    } catch (err) {
+        console.warn("State push network error:", err);
+    }
 }
 
 function startRoomSyncLoop() {
@@ -1239,7 +1266,9 @@ function startRoomSyncLoop() {
                     }
                 }
             }
-        } catch (e) {}
+        } catch (err) {
+            console.warn("Room sync tick warning:", err);
+        }
     }, 800);
 }
 
@@ -1294,7 +1323,7 @@ async function createRoom() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ state: gameState })
         });
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         syncClockFromHeader(res);
 
         msgEl.textContent = "";
@@ -1306,7 +1335,8 @@ async function createRoom() {
         document.getElementById("host-controls").classList.remove("hidden");
         renderGameState();
         startRoomSyncLoop();
-    } catch (e) {
+    } catch (err) {
+        console.error("Create room failed:", err);
         currentRoomCode = "";
         msgEl.style.color = "var(--danger)";
         msgEl.textContent = t("errCreateFail");
@@ -1333,7 +1363,7 @@ async function joinRoom(directCode = null) {
 
     try {
         const checkRes = await fetch(`${FIREBASE_DB_URL}/rooms/${rawCode}/state.json?t=${Date.now()}`, { cache: "no-store" });
-        if (!checkRes.ok) throw new Error();
+        if (!checkRes.ok) throw new Error(`HTTP ${checkRes.status}`);
         syncClockFromHeader(checkRes);
         const rawRoomState = await checkRes.json();
 
@@ -1389,7 +1419,7 @@ async function joinRoom(directCode = null) {
                 avatar: sanitizeAvatar(selectedAvatar)
             })
         });
-        if (!joinPut.ok) throw new Error();
+        if (!joinPut.ok) throw new Error(`HTTP ${joinPut.status}`);
 
         msgEl.textContent = "";
         if (!gameState.players.some(p => p.id === myId)) {
@@ -1408,7 +1438,8 @@ async function joinRoom(directCode = null) {
         renderGameState();
         fetchActiveRooms();
         startRoomSyncLoop();
-    } catch (e) {
+    } catch (err) {
+        console.error("Join room failed:", err);
         isSwitchingRoom = false;
         currentRoomCode = "";
         msgEl.style.color = "var(--danger)";
@@ -1554,16 +1585,20 @@ inputEl.addEventListener("keydown", async (e) => {
             inputEl.value = "";
             msgEl.textContent = "";
             const subId = "s_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
-            await fetch(`${FIREBASE_DB_URL}/rooms/${currentRoomCode}/submissions/${subId}.json`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    word: rawInput.slice(0, 30),
-                    senderId: myId,
-                    turnNumber: submittedTurn,
-                    ts: getSyncedNow()
-                })
-            });
+            try {
+                await fetch(`${FIREBASE_DB_URL}/rooms/${currentRoomCode}/submissions/${subId}.json`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        word: rawInput.slice(0, 30),
+                        senderId: myId,
+                        turnNumber: submittedTurn,
+                        ts: getSyncedNow()
+                    })
+                });
+            } catch (err) {
+                console.warn("Word submission failed:", err);
+            }
         }
     }
 });
@@ -1576,11 +1611,15 @@ async function sendErrorToPlayer(playerId, text) {
         msgEl.style.color = "var(--danger)";
         msgEl.textContent = text;
     } else if (currentRoomCode && !isLocalSolo) {
-        await fetch(`${FIREBASE_DB_URL}/rooms/${currentRoomCode}/errors/${encodeURIComponent(safePlayerId)}.json`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: String(text).slice(0, 120), ts: getSyncedNow() })
-        });
+        try {
+            await fetch(`${FIREBASE_DB_URL}/rooms/${currentRoomCode}/errors/${encodeURIComponent(safePlayerId)}.json`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: String(text).slice(0, 120), ts: getSyncedNow() })
+            });
+        } catch (err) {
+            console.warn("Send error notice failed:", err);
+        }
     }
 }
 
