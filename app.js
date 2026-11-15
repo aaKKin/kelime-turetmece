@@ -3,28 +3,240 @@ const FIREBASE_DB_URL = "https://kelime-turetmece-c151c-default-rtdb.europe-west
 const TURN_DURATION_MS = 7000;
 const HOST_GRACE_MS = 800;
 
-// --- RASTGELE ANONİM TAKMA AD SİSTEMİ (MAX 15 KARAKTER GARANTİLİ) ---
-const nickAdjectives = [
+// --- ÇOKLU DİL SİSTEMİ (TR / EN) ---
+let currentLang = "tr";
+
+const i18n = {
+    tr: {
+        activeRooms: "Aktif Odalar",
+        noActiveRooms: "Şu an aktif oda yok. Oda kurduğunda burada görünür!",
+        lblLang: "Oyun Dili / Game Language",
+        lblAvatar: "Avatarını Seç",
+        lblNick: "Anonim Takma Adın (Gizlilik Korumalı)",
+        btnReroll: "🎲 Değiştir",
+        lblPrivacy: "Oda Gizliliği ve Kurulum",
+        btnPublic: "🌍 Herkese Açık",
+        btnPrivate: "🔒 Gizli Oda",
+        btnCreate: "+ Oda Kur (Arkadaşlar & Botlar)",
+        lblJoin: "Gizli Odaya Kodla Katıl (6 Haneli)",
+        joinPlaceholder: "Örn: A7K9P2",
+        btnJoin: "Katıl",
+        btnSolo: "⚡ Hızlı Oyun: 3 Bota Karşı Oyna",
+        lblCode: "Oda Kodu:",
+        inRoom: "Odandasın",
+        joinMini: "Katıl",
+        inMatch: "Maçta",
+        full: "Dolu",
+        open: "Açık",
+        privateActive: "🔒 Gizli Odada Aktif",
+        privateInMatch: " • Maçta",
+        playersCount: (n) => `${n} Oyuncu`,
+        playersPill: (n) => `${n}/6 Oyuncu`,
+        eliminatedBanner: "❌ Süren dolduğu için elendin! Oyun bitene kadar yazı yazamazsın (İzleyici Modu).",
+        lblTurn: "Tur:",
+        lblTime: "Süre:",
+        lblSec: "sn",
+        wordPlaceholder: "Kelimeyi yaz ve Enter'a bas...",
+        wordPlaceholderElim: "Elendiğin için yazı yazamazsın",
+        btnAddBot: "+ Bot Ekle",
+        btnStart: "Oyunu Başlat",
+        btnRestart: "Tekrar Başlat",
+        btnLeave: "Lobiden Çık",
+        tabChain: "Kelime Zinciri",
+        tabLb: "İlk 5 Lider",
+        thPlayer: "Oyuncu",
+        thWord: "Kelime",
+        thWins: "Galibiyet",
+        emptyChain: "Oyun başladığında türetilen kelimeler burada akacak.",
+        emptyLb: "Henüz tamamlanmış bir maç yok. İlk kazanan sen ol!",
+        lbLive: "🟢 En İyi 5 Oyuncu (Canlı)",
+        lbErr: "⚠️ Bulut bağlantısı kurulamadı",
+        dictLoading: "Sözlük yükleniyor...",
+        dictReady: (n) => `${n.toLocaleString("tr-TR")} kelime doğrulamaya hazır`,
+        dictFallback: (n) => `Çekirdek sözlük hazır (${n} kelime)`,
+        waiting: "BEKLENİYOR",
+        lobbyHostHint: "Arkadaşlarını davet et veya '+ Bot Ekle' ile masayı doldur!",
+        lobbyGuestHint: "Oda kurucusunun oyunu başlatması bekleniyor...",
+        yourTurn: (av, ch) => `${av} SIRA SENDE! '${ch}' ile başlayan kelime yaz:`,
+        botThinking: (av, name) => `${av} ${name} düşünüyor...`,
+        playerTurn: (av, name) => `Sıra ${av} ${name} oyuncusunda...`,
+        youSuffix: "(Sen)",
+        youWord: "Sen",
+        systemName: "Sistem",
+        winText: (av, name) => `Oyun Bitti! Kazanan: ${av} ${name} 🏆`,
+        noWinnerText: "Oyun Bitti! Kazanan yok.",
+        codeCopied: (code) => `Gizli oda kodu (${code}) panoya kopyalandı!`,
+        errCodeLen: "Lütfen 6 haneli oda kodunu eksiksiz gir!",
+        errCreating: "Oda oluşturuluyor...",
+        errCreateFail: "Oda kurulamadı, internet bağlantını kontrol et.",
+        errJoining: "Odaya bağlanılıyor...",
+        errRoomGone: "Bu oda artık aktif değil!",
+        errRoomPlaying: "Bu odada oyun şu an devam ediyor, bitmesini bekle!",
+        errRoomFull: "Bu oda dolu (6/6)!",
+        errJoinFail: "Odaya bağlanırken ağ hatası oluştu.",
+        errHostLeft: "Oda kurucusu odadan ayrıldığı için oda kapatıldı.",
+        errMaxPlayers: "Odada en fazla 6 oyuncu/bot olabilir!",
+        errMinPlayers: "Başlamak için en az 2 oyuncu olmalı (İstersen + Bot Ekle'ye bas)!",
+        errEliminated: "Elendiğin için artık kelime yazamazsın!",
+        errNoSpace: "Boşluk kullanamazsın, sadece tek kelime!",
+        errLettersOnly: "Sadece Türkçe harfler kullanabilirsin!",
+        errMinLen: "En az 3 harfli bir kelime yazmalısın!",
+        errStartsWith: (ch) => `Kelime '${ch}' harfi ile başlamalı!`,
+        errCity: "Şehir isimleri yasak! Cins isim yazmalısın.",
+        errUsed: "Bu kelime daha önce kullanıldı!",
+        errEndsSoftG: "'Ğ' ile biten kelime yazamazsın!",
+        errNotFound: (w) => `"${w}" sözlükte bulunamadı!`
+    },
+    en: {
+        activeRooms: "Active Rooms",
+        noActiveRooms: "No active rooms right now. Create a room to appear here!",
+        lblLang: "Game Language / Oyun Dili",
+        lblAvatar: "Choose Your Avatar",
+        lblNick: "Anonymous Nickname (Privacy Protected)",
+        btnReroll: "🎲 Reroll",
+        lblPrivacy: "Room Privacy & Setup",
+        btnPublic: "🌍 Public Room",
+        btnPrivate: "🔒 Private Room",
+        btnCreate: "+ Create Room (Friends & Bots)",
+        lblJoin: "Join Private Room with 6-Char Code",
+        joinPlaceholder: "e.g. A7K9P2",
+        btnJoin: "Join",
+        btnSolo: "⚡ Quick Play: vs 3 Bots",
+        lblCode: "Room Code:",
+        inRoom: "In Room",
+        joinMini: "Join",
+        inMatch: "Playing",
+        full: "Full",
+        open: "Open",
+        privateActive: "🔒 Active in Private Room",
+        privateInMatch: " • Playing",
+        playersCount: (n) => `${n} Players`,
+        playersPill: (n) => `${n}/6 Players`,
+        eliminatedBanner: "❌ Time ran out! You are eliminated until the match ends (Spectator Mode).",
+        lblTurn: "Turn:",
+        lblTime: "Time:",
+        lblSec: "sec",
+        wordPlaceholder: "Type a word and press Enter...",
+        wordPlaceholderElim: "Eliminated — spectator mode",
+        btnAddBot: "+ Add Bot",
+        btnStart: "Start Game",
+        btnRestart: "Play Again",
+        btnLeave: "Leave Lobby",
+        tabChain: "Word Chain",
+        tabLb: "Top 5 Leaders",
+        thPlayer: "Player",
+        thWord: "Word",
+        thWins: "Wins",
+        emptyChain: "Words played during the match will appear here.",
+        emptyLb: "No finished matches yet. Be the first champion!",
+        lbLive: "🟢 Top 5 Players (Live)",
+        lbErr: "⚠️ Could not connect to cloud",
+        dictLoading: "Loading dictionary...",
+        dictReady: (n) => `${n.toLocaleString("en-US")} words ready for validation`,
+        dictFallback: (n) => `Core dictionary ready (${n} words)`,
+        waiting: "WAITING",
+        lobbyHostHint: "Invite friends or click '+ Add Bot' to fill the table!",
+        lobbyGuestHint: "Waiting for the room host to start the game...",
+        yourTurn: (av, ch) => `${av} YOUR TURN! Type a word starting with '${ch}':`,
+        botThinking: (av, name) => `${av} ${name} is thinking...`,
+        playerTurn: (av, name) => `Waiting for ${av} ${name}...`,
+        youSuffix: "(You)",
+        youWord: "You",
+        systemName: "System",
+        winText: (av, name) => `Game Over! Winner: ${av} ${name} 🏆`,
+        noWinnerText: "Game Over! No winner.",
+        codeCopied: (code) => `Private room code (${code}) copied to clipboard!`,
+        errCodeLen: "Please enter the full 6-character room code!",
+        errCreating: "Creating room...",
+        errCreateFail: "Could not create room, check your connection.",
+        errJoining: "Joining room...",
+        errRoomGone: "This room is no longer active!",
+        errRoomPlaying: "A match is already in progress in this room!",
+        errRoomFull: "This room is full (6/6)!",
+        errJoinFail: "Network error while joining room.",
+        errHostLeft: "The host left, so the room was closed.",
+        errMaxPlayers: "Maximum 6 players/bots allowed in a room!",
+        errMinPlayers: "Need at least 2 players to start (try '+ Add Bot')!",
+        errEliminated: "You are eliminated and cannot type words!",
+        errNoSpace: "No spaces allowed, single word only!",
+        errLettersOnly: "Only English letters (A-Z) are allowed!",
+        errMinLen: "Word must be at least 3 letters long!",
+        errStartsWith: (ch) => `Word must start with '${ch}'!`,
+        errCity: "City names are not allowed!",
+        errUsed: "This word has already been used!",
+        errEndsSoftG: "Words ending in 'X' or 'Q' are not allowed!",
+        errNotFound: (w) => `"${w}" was not found in the dictionary!`
+    }
+};
+
+function t(key, ...args) {
+    const val = i18n[currentLang]?.[key] ?? i18n.tr[key];
+    return typeof val === "function" ? val(...args) : val;
+}
+
+// --- 6 HANELİ ALFANÜMERİK ODA KODU ÜRETİCİ (Yalnızca A-Z ve 0-9) ---
+const ROOM_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+function generateRoomCode() {
+    let code = "";
+    if (window.crypto && window.crypto.getRandomValues) {
+        const arr = new Uint32Array(6);
+        window.crypto.getRandomValues(arr);
+        for (let i = 0; i < 6; i++) {
+            code += ROOM_CODE_CHARS[arr[i] % ROOM_CODE_CHARS.length];
+        }
+    } else {
+        for (let i = 0; i < 6; i++) {
+            code += ROOM_CODE_CHARS[Math.floor(Math.random() * ROOM_CODE_CHARS.length)];
+        }
+    }
+    return code;
+}
+
+function sanitizeRoomCode(raw) {
+    return String(raw ?? "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 6);
+}
+
+// --- RASTGELE ANONİM TAKMA AD SİSTEMİ (TR & EN) ---
+const nickAdjectivesTR = [
     "Hızlı", "Gizem", "Atik", "Zeki", "Süper", "Keskin", "Sessiz", "Çevik",
     "Usta", "Gölge", "Kozmik", "Buzul", "Fırtına", "Kıvrak", "Şimşek", "Asil",
     "Parlak", "Çılgın", "Bilge", "Kızıl", "Mavi", "Altın", "Demir", "Yıldız"
 ];
-const nickNouns = [
+const nickNounsTR = [
     "Tilki", "Baykuş", "Kurt", "Kartal", "Panda", "Ejder", "Vaşak", "Şahin",
     "Gezgin", "Kaşif", "Avcı", "Korsan", "Ninja", "Kuzgun", "Pars", "Kaplan",
     "Aslan", "Yunus", "Kutup", "Süvari", "Ozan", "Kahin", "Atom", "Rüzgar"
 ];
 
-const validNickPattern = new RegExp(`^(${nickAdjectives.join("|")})(${nickNouns.join("|")})\\d{2}$`);
+const nickAdjectivesEN = [
+    "Swift", "Shadow", "Clever", "Hyper", "Sharp", "Silent", "Agile", "Cosmic",
+    "Frost", "Storm", "Flash", "Noble", "Bright", "Wild", "Wise", "Crimson",
+    "Azure", "Golden", "Iron", "Star", "Mystic", "Turbo", "Solar", "Cyber"
+];
+const nickNounsEN = [
+    "Fox", "Owl", "Wolf", "Eagle", "Panda", "Dragon", "Lynx", "Falcon",
+    "Rover", "Scout", "Hunter", "Pirate", "Ninja", "Raven", "Tiger", "Lion",
+    "Dolphin", "Knight", "Bard", "Oracle", "Atom", "Vortex", "Spark", "Hawk"
+];
 
-function generateAnonNick() {
-    const adj = nickAdjectives[Math.floor(Math.random() * nickAdjectives.length)];
-    const noun = nickNouns[Math.floor(Math.random() * nickNouns.length)];
+const allAdjectives = [...nickAdjectivesTR, ...nickAdjectivesEN];
+const allNouns = [...nickNounsTR, ...nickNounsEN];
+const validNickPattern = new RegExp(`^(${allAdjectives.join("|")})(${allNouns.join("|")})\\d{2}$`);
+
+function generateAnonNick(lang = currentLang) {
+    const adjs = lang === "en" ? nickAdjectivesEN : nickAdjectivesTR;
+    const nouns = lang === "en" ? nickNounsEN : nickNounsTR;
+    const adj = adjs[Math.floor(Math.random() * adjs.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
     const num = Math.floor(10 + Math.random() * 89);
     return `${adj}${noun}${num}`;
 }
 
-let currentAnonNick = generateAnonNick();
+let currentAnonNick = generateAnonNick("tr");
 
 function initAnonNickBox() {
     const displayEl = document.getElementById("anon-nick-display");
@@ -32,21 +244,75 @@ function initAnonNickBox() {
 }
 
 function rerollAnonNick() {
-    let nextNick = generateAnonNick();
+    let nextNick = generateAnonNick(currentLang);
     while (nextNick === currentAnonNick) {
-        nextNick = generateAnonNick();
+        nextNick = generateAnonNick(currentLang);
     }
     currentAnonNick = nextNick;
+    myName = currentAnonNick;
     const displayEl = document.getElementById("anon-nick-display");
     if (displayEl) displayEl.textContent = currentAnonNick;
 }
 
 function sanitizeAnonNick(raw, fallback = "AtikTilki10") {
     const cleaned = String(raw ?? "").trim();
-    if (validNickPattern.test(cleaned) || cleaned === "Sistem" || /^Bot/.test(cleaned)) {
+    if (validNickPattern.test(cleaned) || cleaned === "Sistem" || cleaned === "System" || /^Bot/.test(cleaned)) {
         return cleaned;
     }
     return fallback;
+}
+
+function setGameLanguage(lang, rerollNick = true) {
+    currentLang = lang === "en" ? "en" : "tr";
+    const btnTr = document.getElementById("btn-lang-tr");
+    const btnEn = document.getElementById("btn-lang-en");
+    if (btnTr && btnEn) {
+        btnTr.className = currentLang === "tr" ? "privacy-btn active-public" : "privacy-btn";
+        btnEn.className = currentLang === "en" ? "privacy-btn active-public" : "privacy-btn";
+    }
+
+    if (rerollNick) {
+        currentAnonNick = generateAnonNick(currentLang);
+        myName = currentAnonNick;
+        initAnonNickBox();
+    }
+
+    applyLanguageToUI();
+    updateDictStatusBadge();
+    fetchActiveRooms();
+    renderLeaderboard();
+}
+
+function applyLanguageToUI() {
+    document.getElementById("ui-active-rooms-title").textContent = t("activeRooms");
+    document.getElementById("ui-lbl-lang").textContent = t("lblLang");
+    document.getElementById("ui-lbl-avatar").textContent = t("lblAvatar");
+    document.getElementById("ui-lbl-nick").textContent = t("lblNick");
+    document.getElementById("ui-btn-reroll").textContent = t("btnReroll");
+    document.getElementById("ui-lbl-privacy").textContent = t("lblPrivacy");
+    document.getElementById("btn-privacy-public").textContent = t("btnPublic");
+    document.getElementById("btn-privacy-private").textContent = t("btnPrivate");
+    document.getElementById("ui-btn-create").textContent = t("btnCreate");
+    document.getElementById("ui-lbl-join").textContent = t("lblJoin");
+    document.getElementById("join-code-input").placeholder = t("joinPlaceholder");
+    document.getElementById("ui-btn-join").textContent = t("btnJoin");
+    document.getElementById("ui-btn-solo").textContent = t("btnSolo");
+    document.getElementById("ui-lbl-code").textContent = t("lblCode");
+    document.getElementById("eliminated-banner").textContent = t("eliminatedBanner");
+    document.getElementById("ui-lbl-turn").textContent = t("lblTurn");
+    document.getElementById("ui-lbl-time").textContent = t("lblTime");
+    document.getElementById("ui-lbl-sec").textContent = t("lblSec");
+    document.getElementById("add-bot-btn").textContent = t("btnAddBot");
+    document.getElementById("ui-btn-leave").textContent = t("btnLeave");
+    document.getElementById("ui-tab-chain").textContent = t("tabChain");
+    document.getElementById("ui-tab-lb").textContent = t("tabLb");
+    document.getElementById("ui-th-player").textContent = t("thPlayer");
+    document.getElementById("ui-th-word").textContent = t("thWord");
+    document.getElementById("ui-th-lb-player").textContent = t("thPlayer");
+    document.getElementById("ui-th-lb-wins").textContent = t("thWins");
+    document.getElementById("ui-th-lb-words").textContent = t("thWord");
+    document.getElementById("empty-state").textContent = t("emptyChain");
+    document.getElementById("lb-empty-state").textContent = t("emptyLb");
 }
 
 // --- GÜVENLİK VE TEMİZLEME YARDIMCILARI ---
@@ -66,10 +332,11 @@ function sanitizeAvatar(rawAvatar, fallback = "🎮") {
     return allowed.has(rawAvatar) ? rawAvatar : fallback;
 }
 
-function sanitizeWord(rawWord) {
-    return toTurkishUpper(String(rawWord ?? ""))
-        .replace(/[^A-ZÇĞİÖŞÜ]/g, "")
-        .slice(0, 30);
+function sanitizeWord(rawWord, lang = currentLang) {
+    if (lang === "en") {
+        return String(rawWord ?? "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 30);
+    }
+    return toTurkishUpper(String(rawWord ?? "")).replace(/[^A-ZÇĞİÖŞÜ]/g, "").slice(0, 30);
 }
 
 // --- SUNUCU SAATİ FARKI (SIFIR YAZMA MALİYETLİ) ---
@@ -103,7 +370,7 @@ async function initServerTimeSync() {
     } catch (e) {}
 }
 
-// --- AVATAR SEÇİCİ ---
+// --- AVATAR SEÇİCİ & GİRİŞ FİLTRESİ ---
 let selectedAvatar = avatarOptions[0];
 
 function initAvatarSelector() {
@@ -120,6 +387,14 @@ function initAvatarSelector() {
         };
         grid.appendChild(btn);
     });
+
+    const joinInput = document.getElementById("join-code-input");
+    if (joinInput) {
+        joinInput.addEventListener("input", () => {
+            const clean = sanitizeRoomCode(joinInput.value);
+            if (joinInput.value !== clean) joinInput.value = clean;
+        });
+    }
 }
 
 // --- ODA GİZLİLİK SEÇİMİ ---
@@ -177,6 +452,7 @@ async function sendRoomHeartbeat() {
                 hostName: sanitizeAnonNick(myName),
                 hostAvatar: sanitizeAvatar(selectedAvatar),
                 isPublic: Boolean(isRoomPublic),
+                lang: currentLang,
                 status: gameState.status,
                 playerCount: Math.min(6, Math.max(1, gameState.players.length)),
                 lastSeen: { ".sv": "timestamp" }
@@ -186,15 +462,16 @@ async function sendRoomHeartbeat() {
 }
 
 async function removeRoomByCode(code, wasHost) {
-    if (!code || !/^\d{4}$/.test(code)) return;
+    const safeCode = sanitizeRoomCode(code);
+    if (safeCode.length !== 6) return;
     try {
         if (wasHost) {
             await Promise.all([
-                fetch(`${FIREBASE_DB_URL}/activeRooms/${code}.json`, { method: "DELETE", keepalive: true }),
-                fetch(`${FIREBASE_DB_URL}/rooms/${code}.json`, { method: "DELETE", keepalive: true })
+                fetch(`${FIREBASE_DB_URL}/activeRooms/${safeCode}.json`, { method: "DELETE", keepalive: true }),
+                fetch(`${FIREBASE_DB_URL}/rooms/${safeCode}.json`, { method: "DELETE", keepalive: true })
             ]);
         } else {
-            await fetch(`${FIREBASE_DB_URL}/rooms/${code}/joins/${encodeURIComponent(myId)}.json`, { method: "DELETE", keepalive: true });
+            await fetch(`${FIREBASE_DB_URL}/rooms/${safeCode}/joins/${encodeURIComponent(myId)}.json`, { method: "DELETE", keepalive: true });
         }
     } catch (e) {}
 }
@@ -219,7 +496,7 @@ async function fetchActiveRooms() {
 
         if (data && typeof data === "object") {
             for (const [rCode, info] of Object.entries(data)) {
-                if (!info || !/^\d{4}$/.test(rCode)) continue;
+                if (!info || !/^[A-Z0-9]{6}$/.test(rCode)) continue;
                 const roomLastSeen = typeof info.lastSeen === "number" ? info.lastSeen : serverNow;
 
                 if (serverNow - roomLastSeen <= 90000) {
@@ -241,16 +518,17 @@ function renderActiveRooms(rooms) {
     countBadge.textContent = rooms.length;
 
     if (rooms.length === 0) {
-        container.innerHTML = `<div class="online-empty-msg">Şu an aktif oda yok. Oda kurduğunda burada görünür!</div>`;
+        container.innerHTML = `<div class="online-empty-msg">${escapeHTML(t("noActiveRooms"))}</div>`;
         return;
     }
 
     rooms.forEach(room => {
-        const safeKey = String(room.roomKey || "").replace(/\D/g, "").slice(0, 4);
-        const safeCode = String(room.code || "").replace(/\D/g, "").slice(0, 4);
+        const safeKey = sanitizeRoomCode(room.roomKey);
+        const safeCode = sanitizeRoomCode(room.code);
         const safeHostName = escapeHTML(sanitizeAnonNick(room.hostName));
         const safeHostAvatar = sanitizeAvatar(room.hostAvatar, "🎮");
         const safePlayerCount = Math.min(6, Math.max(1, Number(room.playerCount) || 1));
+        const langTag = room.lang === "en" ? "🇬🇧 EN" : "🇹🇷 TR";
 
         const card = document.createElement("div");
         card.className = "online-room-card" + (room.isPublic ? " is-public" : "");
@@ -262,18 +540,20 @@ function renderActiveRooms(rooms) {
         let rightActionHtml = "";
         let subInfoHtml = "";
 
-        if (room.isPublic && safeCode.length === 4) {
-            subInfoHtml = `<span class="room-player-pill">${safePlayerCount}/6 Oyuncu</span>`;
+        if (room.isPublic && safeCode.length === 6) {
+            subInfoHtml = `<span class="room-player-pill">${langTag} • ${escapeHTML(t("playersPill", safePlayerCount))}</span>`;
 
             if (isMyRoom) {
-                rightActionHtml = `<span style="font-size: 0.72rem; color: var(--cyan); font-weight: 700;">Odandasın</span>`;
+                rightActionHtml = `<span style="font-size: 0.72rem; color: var(--cyan); font-weight: 700;">${escapeHTML(t("inRoom"))}</span>`;
             } else if (!isPlaying && !isFull) {
-                rightActionHtml = `<button class="quick-join-mini" onclick="joinRoom('${safeCode}')">Katıl</button>`;
+                rightActionHtml = `<button class="quick-join-mini" onclick="joinRoom('${safeCode}')">${escapeHTML(t("joinMini"))}</button>`;
             } else {
-                rightActionHtml = `<span class="in-game-badge">${isPlaying ? "Maçta" : (isFull ? "Dolu" : "Açık")}</span>`;
+                const badgeText = isPlaying ? t("inMatch") : (isFull ? t("full") : t("open"));
+                rightActionHtml = `<span class="in-game-badge">${escapeHTML(badgeText)}</span>`;
             }
         } else {
-            subInfoHtml = `<span class="private-status-tag">🔒 Gizli Odada Aktif${isPlaying ? " • Maçta" : ""}</span>`;
+            const privText = t("privateActive") + (isPlaying ? t("privateInMatch") : "");
+            subInfoHtml = `<span class="private-status-tag">${langTag} • ${escapeHTML(privText)}</span>`;
         }
 
         card.innerHTML = `
@@ -334,10 +614,10 @@ async function fetchGlobalLeaderboard() {
         if (!res.ok) throw new Error();
         const data = await res.json();
         leaderboardData = (data && typeof data === "object") ? data : {};
-        infoEl.textContent = "🟢 En İyi 5 Oyuncu (Canlı)";
+        infoEl.textContent = t("lbLive");
         renderLeaderboard();
     } catch (e) {
-        infoEl.textContent = "⚠️ Bulut bağlantısı kurulamadı";
+        infoEl.textContent = t("lbErr");
         renderLeaderboard();
     }
 }
@@ -455,8 +735,8 @@ function renderLeaderboard() {
     });
 }
 
-// --- KELİME HAVUZU ---
-const commonBotWords = [
+// --- TÜRKÇE KELİME HAVUZU ---
+const commonBotWordsTR = [
     "ABLA", "ABİ", "ACİL", "AÇIK", "ADA", "ADALET", "ADAM", "ADIM", "ADRES", "AĞAÇ", "AĞIZ", "AİLE",
     "AKIL", "AKREP", "AKŞAM", "ALAN", "ALARM", "ALET", "ALEV", "ALKIŞ", "ALTIN", "AMAÇ", "AMCA", "ANAHTAR",
     "ANLAM", "ANNE", "ARABA", "ARAZİ", "ARKA", "ARKADAŞ", "ARMUT", "ARPA", "ASANSÖR", "ASKER", "ASLAN",
@@ -563,6 +843,101 @@ const commonBotWords = [
     "ZİNCİR", "ZİRVE", "ZİYARET", "ZOR", "ZÜRAFA"
 ];
 
+// --- İNGİLİZCE KELİME HAVUZU (~360 COMMON WORDS) ---
+const commonBotWordsEN = [
+    "APPLE", "ARROW", "ARTIST", "ACTION", "ANCHOR", "ANIMAL", "ANSWER", "AUTUMN", "AVENUE", "AWARD",
+    "ALARM", "ALBUM", "ALERT", "ALIEN", "ALIVE", "ANGEL", "ANGER", "ANGLE", "ANKLE", "APRON",
+    "ARENA", "ARMOR", "AROMA", "ASSET", "ATLAS", "ATOM", "ATTIC", "AUDIO", "AUTHOR", "AWAKE",
+    "BADGE", "BAKER", "BALANCE", "BALLOON", "BANANA", "BANDIT", "BANNER", "BARREL", "BASKET", "BATTLE",
+    "BEACH", "BEACON", "BEAUTY", "BEAVER", "BEETLE", "BELIEF", "BENCH", "BERRY", "BICYCLE", "BISHOP",
+    "BLANKET", "BLAZE", "BLOSSOM", "BOARD", "BOAT", "BOLT", "BONE", "BOOK", "BORDER", "BOTTLE",
+    "BOTTOM", "BOUNCE", "BRANCH", "BRAVE", "BREAD", "BREEZE", "BRICK", "BRIDGE", "BRIGHT", "BRONZE",
+    "BROOK", "BROTHER", "BRUSH", "BUBBLE", "BUCKET", "BUDGET", "BUFFALO", "BUILDER", "BULLET", "BUNDLE",
+    "BURGER", "BUTTER", "BUTTON", "CABIN", "CACTUS", "CAGE", "CAKE", "CAMERA", "CAMP", "CANAL",
+    "CANDLE", "CANDY", "CANYON", "CAPTAIN", "CARBON", "CARD", "CARGO", "CARPET", "CARROT", "CASTLE",
+    "CATCH", "CATTLE", "CAVERN", "CEILING", "CELLAR", "CENTER", "CHAIN", "CHAIR", "CHALK", "CHAMPION",
+    "CHANCE", "CHANGE", "CHANNEL", "CHAPTER", "CHARGE", "CHARM", "CHASE", "CHEESE", "CHERRY", "CHEST",
+    "CHICKEN", "CHILD", "CHIMNEY", "CHOICE", "CHORD", "CIRCLE", "CIRCUS", "CITIZEN", "CLAY", "CLIFF",
+    "CLIMATE", "CLOCK", "CLOUD", "CLOVER", "COACH", "COAST", "COFFEE", "COIN", "COLLAR", "COLOR",
+    "COLUMN", "COMET", "COMFORT", "COMPASS", "CONCERT", "COOKIE", "COPPER", "CORAL", "CORNER", "COTTON",
+    "COUGAR", "COUNCIL", "COUNTRY", "COURAGE", "COURSE", "COURT", "CRADLE", "CRAFT", "CRANE", "CRATER",
+    "CREAM", "CREEK", "CRICKET", "CROWN", "CRYSTAL", "CURTAIN", "CUSTOM", "CYCLE", "DAGGER", "DAISY",
+    "DANCE", "DANGER", "DAWN", "DAYLIGHT", "DEBATE", "DECADE", "DEER", "DEFENSE", "DEGREE", "DELAY",
+    "DELIGHT", "DELTA", "DEMAND", "DESERT", "DESIGN", "DESK", "DETAIL", "DEVICE", "DIAMOND", "DIARY",
+    "DINNER", "DOCTOR", "DOLPHIN", "DOMAIN", "DONKEY", "DOOR", "DOUBLE", "DRAGON", "DRAMA", "DREAM",
+    "DRESS", "DRIFT", "DRIVER", "DROP", "DRUM", "DUCK", "DUST", "EAGLE", "EARTH", "ECHO",
+    "EDGE", "EFFECT", "EFFORT", "ELBOW", "ELDER", "ELEMENT", "ELEPHANT", "EMERALD", "EMPIRE", "ENERGY",
+    "ENGINE", "ENTRY", "ENVY", "EQUAL", "ERASER", "ERROR", "ESCAPE", "ESSAY", "EVENING", "EVENT",
+    "EVIDENCE", "EXAMPLE", "EXPERT", "FABRIC", "FACTOR", "FACTORY", "FALCON", "FAMILY", "FARMER", "FASHION",
+    "FATHER", "FEATHER", "FEATURE", "FENCE", "FESTIVAL", "FIBER", "FIELD", "FIGURE", "FILTER", "FINGER",
+    "FIRE", "FISH", "FLAME", "FLAVOR", "FLIGHT", "FLOAT", "FLOOD", "FLOOR", "FLOUR", "FLOWER",
+    "FLUTE", "FOCUS", "FOREST", "FORK", "FORTUNE", "FOSSIL", "FOUNTAIN", "FRAME", "FREEDOM", "FRIEND",
+    "FROG", "FRONT", "FROST", "FRUIT", "FUEL", "FURNACE", "FUTURE", "GADGET", "GALAXY", "GALLERY",
+    "GAME", "GARAGE", "GARDEN", "GARLIC", "GATE", "GENTLE", "GHOST", "GIANT", "GIFT", "GINGER",
+    "GIRAFFE", "GLACIER", "GLASS", "GLOBE", "GLOVE", "GOAL", "GOAT", "GOLD", "GOOSE", "GRAIN",
+    "GRAPE", "GRASS", "GRAVEL", "GRAVITY", "GREEN", "GROUND", "GROUP", "GUARD", "GUEST", "GUIDE",
+    "GUITAR", "HABIT", "HAMMER", "HANDLE", "HARBOR", "HARMONY", "HARVEST", "HAWK", "HAZARD", "HEALTH",
+    "HEART", "HEAVEN", "HELMET", "HERITAGE", "HERO", "HIGHWAY", "HISTORY", "HOBBY", "HOLLOW", "HONEY",
+    "HONOR", "HORIZON", "HORN", "HORSE", "HOSPITAL", "HOTEL", "HOUSE", "HUMOR", "HUNTER", "HURRICANE",
+    "ICEBERG", "IDEA", "IMAGE", "IMPACT", "IMPULSE", "INCOME", "INSECT", "INSTANT", "ISLAND", "IVORY",
+    "JACKET", "JAGUAR", "JASMINE", "JEWEL", "JIGSAW", "JOURNEY", "JUDGE", "JUICE", "JUNGLE", "JUNIOR",
+    "KEEPER", "KETTLE", "KEY", "KINGDOM", "KITCHEN", "KITE", "KITTEN", "KNIGHT", "KNOWLEDGE", "LABEL",
+    "LADDER", "LAGOON", "LAKE", "LAMP", "LANTERN", "LAPTOP", "LASER", "LAUGHTER", "LAVA", "LAWYER",
+    "LAYER", "LEADER", "LEAF", "LEAGUE", "LEATHER", "LEGEND", "LEMON", "LEOPARD", "LESSON", "LETTER",
+    "LEVEL", "LIBERTY", "LIBRARY", "LIGHT", "LIGHTNING", "LILY", "LIMIT", "LION", "LIQUID", "LIZARD",
+    "LOCK", "LOCUST", "LODGE", "LOGIC", "LOTUS", "LOUNGE", "LOYALTY", "LUMBER", "LUNAR", "MACHINE",
+    "MAGNET", "MAJESTY", "MAMMOTH", "MANAGER", "MANGO", "MANSION", "MANTLE", "MAPLE", "MARBLE", "MARCH",
+    "MARGIN", "MARKET", "MARVEL", "MASTER", "MATCH", "MATTER", "MEADOW", "MEASURE", "MEDAL", "MELODY",
+    "MELON", "MEMORY", "MENTOR", "MERCHANT", "MERCURY", "MESSAGE", "METAL", "METEOR", "METHOD", "MIDDLE",
+    "MIDNIGHT", "MILLION", "MINERAL", "MIRACLE", "MIRROR", "MISSILE", "MISSION", "MIST", "MODEL", "MODERN",
+    "MOMENT", "MONARCH", "MONEY", "MONKEY", "MONSTER", "MONTH", "MONUMENT", "MOON", "MORNING", "MOTION",
+    "MOTOR", "MOUNTAIN", "MOUSE", "MUSEUM", "MUSIC", "MYSTERY", "NATION", "NATURE", "NEBULA", "NEEDLE",
+    "NEIGHBOR", "NERVE", "NETWORK", "NIGHT", "NOISE", "NOODLE", "NORTH", "NOTE", "NOVEL", "NUMBER",
+    "NURSE", "NUTMEG", "OAK", "OASIS", "OBJECT", "OCEAN", "OCTOPUS", "OFFICE", "OLIVE", "ONION",
+    "OPERA", "OPINION", "ORANGE", "ORBIT", "ORCHARD", "ORDER", "ORGAN", "ORIGIN", "OSTRICH", "OTTER",
+    "OUTLINE", "OVEN", "OWL", "OWNER", "OXYGEN", "OYSTER", "PACKAGE", "PADDLE", "PAGE", "PAINT",
+    "PALACE", "PALM", "PANCAKE", "PANDA", "PANEL", "PANTHER", "PAPER", "PARADE", "PARCEL", "PARENT",
+    "PARK", "PARROT", "PARTNER", "PARTY", "PASSAGE", "PASSPORT", "PASTA", "PATH", "PATIENCE", "PATTERN",
+    "PEACE", "PEACH", "PEACOCK", "PEAK", "PEARL", "PEBBLE", "PELICAN", "PENCIL", "PENGUIN", "PEPPER",
+    "PERIOD", "PERSON", "PETAL", "PHANTOM", "PHONE", "PHOTO", "PIANO", "PICTURE", "PIECE", "PIGEON",
+    "PILLAR", "PILLOW", "PILOT", "PINE", "PIONEER", "PIRATE", "PISTOL", "PLANET", "PLANT", "PLASTIC",
+    "PLATE", "PLATFORM", "PLAYER", "POCKET", "POEM", "POET", "POINT", "POISON", "POLAR", "POLICE",
+    "POLICY", "POND", "PONY", "POPCORN", "PORT", "PORTAL", "PORTRAIT", "POSTER", "POTATO", "POTTERY",
+    "POWDER", "POWER", "PRACTICE", "PRAIRIE", "PRESENT", "PRESSURE", "PRICE", "PRIDE", "PRINCE", "PRISM",
+    "PRIZE", "PROBLEM", "PROCESS", "PRODUCT", "PROFILE", "PROGRAM", "PROJECT", "PROMISE", "PROPHET", "PUZZLE",
+    "PYRAMID", "QUARTZ", "QUEEN", "QUEST", "QUESTION", "RABBIT", "RACCOON", "RADAR", "RADIO", "RAILWAY",
+    "RAIN", "RAINBOW", "RANCH", "RANGER", "RAPTOR", "RAVEN", "REACH", "REACTOR", "REASON", "REBEL",
+    "RECIPE", "RECORD", "REFUGE", "REGION", "RELIC", "REMEDY", "REPORT", "RESCUE", "RESERVE", "RESORT",
+    "RESULT", "REWARD", "RHYTHM", "RIBBON", "RIDGE", "RIFLE", "RING", "RIVER", "ROAD", "ROBOT",
+    "ROCKET", "ROOF", "ROOT", "ROPE", "ROSE", "ROUTE", "ROYAL", "RUBBER", "RUBY", "RULER",
+    "RUNNER", "SADDLE", "SAFARI", "SAFETY", "SAILOR", "SALAD", "SALMON", "SALT", "SAMPLE", "SAND",
+    "SANDAL", "SAPPHIRE", "SATELLITE", "SATURN", "SAUCE", "SAVANNA", "SCALE", "SCARF", "SCENE", "SCHOOL",
+    "SCIENCE", "SCISSORS", "SCOUT", "SCREEN", "SCULPTURE", "SEASON", "SECRET", "SECTOR", "SEED", "SENSOR",
+    "SERIES", "SERVANT", "SERVICE", "SHADOW", "SHARK", "SHEEP", "SHELTER", "SHIELD", "SHIP", "SHIRT",
+    "SHOE", "SHORE", "SHOVEL", "SHOWER", "SHRIMP", "SIGNAL", "SILENCE", "SILK", "SILVER", "SINGER",
+    "SISTER", "SKETCH", "SKILL", "SKY", "SLATE", "SLEEP", "SLOPE", "SMILE", "SMOKE", "SNAKE",
+    "SNOW", "SOCCER", "SOCKET", "SODA", "SOIL", "SOLDIER", "SOLUTION", "SONG", "SOUND", "SOURCE",
+    "SOUTH", "SPACE", "SPARK", "SPARROW", "SPEAKER", "SPEAR", "SPECIES", "SPEED", "SPHERE", "SPIDER",
+    "SPIRIT", "SPONGE", "SPOON", "SPORT", "SPRING", "SQUARE", "SQUIRREL", "STADIUM", "STAGE", "STAR",
+    "STATION", "STATUE", "STEAM", "STEEL", "STEP", "STICK", "STONE", "STORM", "STORY", "STREAM",
+    "STREET", "STRENGTH", "STRING", "STUDENT", "STUDIO", "STYLE", "SUBJECT", "SUGAR", "SUMMER", "SUMMIT",
+    "SUN", "SUNRISE", "SUNSET", "SUPPORT", "SURFACE", "SURPRISE", "SWALLOW", "SWAMP", "SWAN", "SWEATER",
+    "SWORD", "SYMBOL", "SYSTEM", "TABLE", "TABLET", "TAIL", "TALENT", "TARGET", "TASK", "TEACHER",
+    "TEAM", "TEMPLE", "TENNIS", "TENT", "TERRAIN", "THEATER", "THEORY", "THIEF", "THORN", "THREAD",
+    "THRONE", "THUNDER", "TICKET", "TIDE", "TIGER", "TIMBER", "TIME", "TITLE", "TOAST", "TOKEN",
+    "TOMATO", "TONGUE", "TOOL", "TOOTH", "TOPIC", "TORCH", "TORNADO", "TORTOISE", "TOUCH", "TOURIST",
+    "TOWER", "TOWN", "TRACK", "TRACTOR", "TRADE", "TRAFFIC", "TRAIL", "TRAIN", "TRANSIT", "TRAVEL",
+    "TREASURE", "TREE", "TRIANGLE", "TRIBE", "TRICK", "TRIGGER", "TROPHY", "TRUCK", "TRUMPET", "TRUST",
+    "TRUTH", "TUNNEL", "TURBINE", "TURTLE", "TWILIGHT", "TYPHOON", "UMBRELLA", "UNICORN", "UNIFORM", "UNION",
+    "UNIVERSE", "VALLEY", "VALUE", "VAMPIRE", "VANILLA", "VAPOR", "VAULT", "VECTOR", "VELVET", "VENTURE",
+    "VESSEL", "VICTORY", "VIDEO", "VILLAGE", "VINE", "VIOLIN", "VIPER", "VISION", "VISITOR", "VOICE",
+    "VOLCANO", "VOLTAGE", "VOLUME", "VORTEX", "VOYAGE", "VULTURE", "WAGON", "WALL", "WALNUT", "WALRUS",
+    "WANDERER", "WARRIOR", "WATCH", "WATER", "WAVE", "WEALTH", "WEAPON", "WEATHER", "WEB", "WELCOME",
+    "WEST", "WHALE", "WHEAT", "WHEEL", "WHISPER", "WHISTLE", "WILLOW", "WIND", "WINDOW", "WING",
+    "WINTER", "WIRE", "WISDOM", "WITCH", "WIZARD", "WOLF", "WONDER", "WOOD", "WOOL", "WORKER",
+    "WORLD", "WORM", "WRITER", "YACHT", "YARD", "YEAR", "YELLOW", "YOGURT", "YOUTH", "ZEBRA", "ZENITH", "ZONE"
+];
+
 const turkishCities = new Set([
     "ADANA", "ADIYAMAN", "AFYONKARAHİSAR", "AĞRI", "AMASYA", "ANKARA", "ANTALYA", "ARTVİN", "AYDIN",
     "BALIKESİR", "BİLECİK", "BİNGÖL", "BİTLİS", "BOLU", "BURDUR", "BURSA", "ÇANAKKALE", "ÇANKIRI",
@@ -575,6 +950,11 @@ const turkishCities = new Set([
     "BARTIN", "ARDAHAN", "IĞDIR", "YALOVA", "KARABÜK", "KİLİS", "OSMANİYE", "DÜZCE"
 ]);
 
+const majorWorldCitiesEN = new Set([
+    "LONDON", "PARIS", "BERLIN", "MADRID", "ROME", "TOKYO", "SEOUL", "BEIJING", "MOSCOW", "ISTANBUL",
+    "ANKARA", "IZMIR", "NEWYORK", "CHICAGO", "BOSTON", "MIAMI", "SEATTLE", "TORONTO", "SYDNEY", "DUBAI", "CAIRO"
+]);
+
 const botProfiles = [
     { name: "Bot Alp", avatar: "🤖", skill: 0.90 },
     { name: "Bot Derin", avatar: "🦾", skill: 0.85 },
@@ -583,32 +963,61 @@ const botProfiles = [
     { name: "Bot Kaan", avatar: "⚙️", skill: 0.80 }
 ];
 
-let dictionarySet = new Set(commonBotWords);
-const cleanBotWords = commonBotWords.filter(w => !w.endsWith("Ğ") && !turkishCities.has(w));
+let dictionarySetTR = new Set(commonBotWordsTR);
+let dictionarySetEN = new Set(commonBotWordsEN);
+
+const cleanBotWordsTR = commonBotWordsTR.filter(w => !w.endsWith("Ğ") && !turkishCities.has(w));
+const cleanBotWordsEN = commonBotWordsEN.filter(w => !w.endsWith("X") && !w.endsWith("Q") && !majorWorldCitiesEN.has(w));
 
 function toTurkishUpper(str) {
     return str.replace(/i/g, "İ").replace(/ı/g, "I").toUpperCase().trim();
 }
 
-async function loadDictionary() {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-    try {
-        const res = await fetch("https://cdn.jsdelivr.net/gh/mertemin/turkish-word-list@master/words.txt", { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error();
-        const text = await res.text();
-        text.split(/\r?\n/).forEach(line => {
-            const w = line.trim();
-            if (w.length >= 3 && !w.includes(" ") && /^[a-zA-ZçğıöşüÇĞİÖŞÜ]+$/.test(w)) {
-                const upper = toTurkishUpper(w);
-                if (!turkishCities.has(upper)) dictionarySet.add(upper);
-            }
-        });
-        document.getElementById("dict-status").textContent = `${dictionarySet.size.toLocaleString('tr-TR')} kelime doğrulamaya hazır`;
-    } catch (e) {
-        document.getElementById("dict-status").textContent = `Çekirdek sözlük hazır (${dictionarySet.size} kelime)`;
-    }
+function updateDictStatusBadge() {
+    const size = currentLang === "en" ? dictionarySetEN.size : dictionarySetTR.size;
+    const el = document.getElementById("dict-status");
+    if (el) el.textContent = t("dictReady", size);
+}
+
+async function loadDictionaries() {
+    const loadTR = async () => {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 3500);
+        try {
+            const res = await fetch("https://cdn.jsdelivr.net/gh/mertemin/turkish-word-list@master/words.txt", { signal: controller.signal });
+            clearTimeout(tid);
+            if (!res.ok) throw new Error();
+            const text = await res.text();
+            text.split(/\r?\n/).forEach(line => {
+                const w = line.trim();
+                if (w.length >= 3 && !w.includes(" ") && /^[a-zA-ZçğıöşüÇĞİÖŞÜ]+$/.test(w)) {
+                    const upper = toTurkishUpper(w);
+                    if (!turkishCities.has(upper)) dictionarySetTR.add(upper);
+                }
+            });
+        } catch (e) {}
+    };
+
+    const loadEN = async () => {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 3500);
+        try {
+            const res = await fetch("https://cdn.jsdelivr.net/gh/dwyl/english-words@master/words_alpha.txt", { signal: controller.signal });
+            clearTimeout(tid);
+            if (!res.ok) throw new Error();
+            const text = await res.text();
+            text.split(/\r?\n/).forEach(line => {
+                const w = line.trim();
+                if (w.length >= 3 && w.length <= 24 && /^[a-zA-Z]+$/.test(w)) {
+                    const upper = w.toUpperCase();
+                    if (!majorWorldCitiesEN.has(upper)) dictionarySetEN.add(upper);
+                }
+            });
+        } catch (e) {}
+    };
+
+    await Promise.all([loadTR(), loadEN()]);
+    updateDictStatusBadge();
 }
 
 // --- %100 FIREBASE ÇOK OYUNCULU ODA MOTORU ---
@@ -625,6 +1034,7 @@ let isSwitchingRoom = false;
 let gameState = {
     status: "lobby",
     isPublic: true,
+    lang: "tr",
     players: [],
     turnIndex: 0,
     turnNumber: 0,
@@ -637,6 +1047,7 @@ let gameState = {
 
 function normalizeGameState(raw) {
     const s = (raw && typeof raw === "object") ? raw : {};
+    const roomLang = s.lang === "en" ? "en" : "tr";
     const rawPlayers = Array.isArray(s.players) ? s.players : [];
     const safePlayers = rawPlayers.slice(0, 6).map(p => ({
         id: String(p?.id || "").replace(/[^a-zA-Z0-9._-]/g, ""),
@@ -649,7 +1060,7 @@ function normalizeGameState(raw) {
 
     const rawHistory = Array.isArray(s.history) ? s.history : [];
     const safeHistory = rawHistory.slice(-200).map(h => ({
-        word: sanitizeWord(h?.word),
+        word: sanitizeWord(h?.word, roomLang),
         senderName: sanitizeAnonNick(h?.senderName),
         senderAvatar: sanitizeAvatar(h?.senderAvatar, "🎮"),
         senderId: String(h?.senderId || "").replace(/[^a-zA-Z0-9._-]/g, ""),
@@ -659,11 +1070,12 @@ function normalizeGameState(raw) {
     return {
         status: ["lobby", "playing", "gameover"].includes(s.status) ? s.status : "lobby",
         isPublic: s.isPublic !== false,
+        lang: roomLang,
         players: safePlayers,
         turnIndex: Math.max(0, Math.min(safePlayers.length - 1, Number(s.turnIndex) || 0)),
         turnNumber: Math.max(0, Number(s.turnNumber) || 0),
-        currentWord: sanitizeWord(s.currentWord),
-        usedWords: Array.isArray(s.usedWords) ? s.usedWords.map(w => sanitizeWord(w)).filter(Boolean) : [],
+        currentWord: sanitizeWord(s.currentWord, roomLang),
+        usedWords: Array.isArray(s.usedWords) ? s.usedWords.map(w => sanitizeWord(w, roomLang)).filter(Boolean) : [],
         history: safeHistory,
         winnerText: String(s.winnerText || "").slice(0, 80),
         turnStartedAt: typeof s.turnStartedAt === "number" ? s.turnStartedAt : getSyncedNow()
@@ -691,18 +1103,23 @@ function showGameScreen() {
     }
 }
 
-function updateRoomBannerPrivacy(publicFlag, code) {
+function updateRoomBannerPrivacy(publicFlag, code, lang = currentLang) {
     const codeWrapper = document.getElementById("private-code-wrapper");
     const badge = document.getElementById("room-privacy-badge");
+    const langBadge = document.getElementById("room-lang-badge");
+
+    if (langBadge) {
+        langBadge.textContent = lang === "en" ? "🇬🇧 EN" : "🇹🇷 TR";
+    }
 
     if (publicFlag) {
         codeWrapper.classList.add("hidden");
-        badge.textContent = "🌍 Herkese Açık Oda";
+        badge.textContent = t("btnPublic");
         badge.className = "room-privacy-pill";
     } else {
         codeWrapper.classList.remove("hidden");
         document.getElementById("room-code-text").textContent = code;
-        badge.textContent = "🔒 Gizli Oda";
+        badge.textContent = t("btnPrivate");
         badge.className = "room-privacy-pill private-pill";
     }
 }
@@ -762,7 +1179,7 @@ function startRoomSyncLoop() {
                         const safeSubKey = String(subKey).replace(/[^a-zA-Z0-9._-]/g, "");
                         if (safeSubKey && subData && subData.word && subData.senderId) {
                             await fetch(`${FIREBASE_DB_URL}/rooms/${currentRoomCode}/submissions/${encodeURIComponent(safeSubKey)}.json`, { method: "DELETE" });
-                            await validateAndProcessWord(sanitizeWord(subData.word), String(subData.senderId), subData.turnNumber);
+                            await validateAndProcessWord(sanitizeWord(subData.word, gameState.lang), String(subData.senderId), subData.turnNumber);
                         }
                     }
                 }
@@ -796,13 +1213,16 @@ function startRoomSyncLoop() {
                     document.getElementById("game-screen").classList.add("hidden");
                     document.getElementById("lobby-screen").classList.remove("hidden");
                     msgEl.style.color = "var(--warning)";
-                    msgEl.textContent = "Oda kurucusu odadan ayrıldığı için oda kapatıldı.";
+                    msgEl.textContent = t("errHostLeft");
                     fetchActiveRooms();
                     return;
                 }
 
                 const prevStatus = gameState.status;
                 gameState = normalizeGameState(remoteState);
+                if (gameState.lang !== currentLang) {
+                    setGameLanguage(gameState.lang, false);
+                }
 
                 renderGameState();
 
@@ -836,6 +1256,7 @@ function startQuickBotArena() {
     isHost = true;
     isLocalSolo = true;
     myName = getPlayerName();
+    gameState.lang = currentLang;
     showGameScreen();
     document.getElementById("room-banner").classList.add("hidden");
 
@@ -852,14 +1273,15 @@ async function createRoom() {
     isLocalSolo = false;
     isLeavingRoom = false;
     myName = getPlayerName();
-    currentRoomCode = String(Math.floor(1000 + Math.random() * 9000));
+    currentRoomCode = generateRoomCode();
 
     msgEl.style.color = "var(--cyan)";
-    msgEl.textContent = "Oda oluşturuluyor...";
+    msgEl.textContent = t("errCreating");
 
     gameState = normalizeGameState({
         status: "lobby",
         isPublic: isRoomPublic,
+        lang: currentLang,
         players: [{ id: myId, name: myName, avatar: sanitizeAvatar(selectedAvatar), isBot: false, eliminated: false }],
         turnNumber: 0,
         turnStartedAt: getSyncedNow()
@@ -880,26 +1302,26 @@ async function createRoom() {
         await fetchActiveRooms();
 
         showGameScreen();
-        updateRoomBannerPrivacy(isRoomPublic, currentRoomCode);
+        updateRoomBannerPrivacy(isRoomPublic, currentRoomCode, currentLang);
         document.getElementById("host-controls").classList.remove("hidden");
         renderGameState();
         startRoomSyncLoop();
     } catch (e) {
         currentRoomCode = "";
         msgEl.style.color = "var(--danger)";
-        msgEl.textContent = "Oda kurulamadı, internet bağlantını kontrol et.";
+        msgEl.textContent = t("errCreateFail");
     }
 }
 
 // --- ODAYA KATIL ---
 async function joinRoom(directCode = null) {
     const rawCode = directCode
-        ? String(directCode).trim().replace(/\D/g, "")
-        : document.getElementById("join-code-input").value.trim().replace(/\D/g, "");
+        ? sanitizeRoomCode(directCode)
+        : sanitizeRoomCode(document.getElementById("join-code-input").value);
 
-    if (rawCode.length !== 4) {
+    if (rawCode.length !== 6) {
         msgEl.style.color = "var(--danger)";
-        msgEl.textContent = "Lütfen 4 haneli gizli oda kodunu gir!";
+        msgEl.textContent = t("errCodeLen");
         return;
     }
 
@@ -907,7 +1329,7 @@ async function joinRoom(directCode = null) {
 
     myName = getPlayerName();
     msgEl.style.color = "var(--cyan)";
-    msgEl.textContent = "Odaya bağlanılıyor...";
+    msgEl.textContent = t("errJoining");
 
     try {
         const checkRes = await fetch(`${FIREBASE_DB_URL}/rooms/${rawCode}/state.json?t=${Date.now()}`, { cache: "no-store" });
@@ -917,18 +1339,18 @@ async function joinRoom(directCode = null) {
 
         if (!rawRoomState || !Array.isArray(rawRoomState.players)) {
             msgEl.style.color = "var(--danger)";
-            msgEl.textContent = "Bu oda artık aktif değil!";
+            msgEl.textContent = t("errRoomGone");
             fetchActiveRooms();
             return;
         }
         if (rawRoomState.status === "playing") {
             msgEl.style.color = "var(--warning)";
-            msgEl.textContent = "Bu odada oyun şu an devam ediyor, bitmesini bekle!";
+            msgEl.textContent = t("errRoomPlaying");
             return;
         }
         if (rawRoomState.players.length >= 6) {
             msgEl.style.color = "var(--warning)";
-            msgEl.textContent = "Bu oda dolu (6/6)!";
+            msgEl.textContent = t("errRoomFull");
             return;
         }
 
@@ -952,6 +1374,12 @@ async function joinRoom(directCode = null) {
         lastRenderedTurnNumber = -1;
         lastRenderedTurnStart = 0;
 
+        gameState = normalizeGameState(rawRoomState);
+        if (gameState.lang !== currentLang) {
+            setGameLanguage(gameState.lang, true);
+            myName = getPlayerName();
+        }
+
         const joinPut = await fetch(`${FIREBASE_DB_URL}/rooms/${currentRoomCode}/joins/${encodeURIComponent(myId)}.json`, {
             method: "PUT",
             cache: "no-store",
@@ -964,7 +1392,6 @@ async function joinRoom(directCode = null) {
         if (!joinPut.ok) throw new Error();
 
         msgEl.textContent = "";
-        gameState = normalizeGameState(rawRoomState);
         if (!gameState.players.some(p => p.id === myId)) {
             gameState.players.push({
                 id: myId,
@@ -976,7 +1403,7 @@ async function joinRoom(directCode = null) {
         }
 
         showGameScreen();
-        updateRoomBannerPrivacy(gameState.isPublic, currentRoomCode);
+        updateRoomBannerPrivacy(gameState.isPublic, currentRoomCode, gameState.lang);
         document.getElementById("host-controls").classList.add("hidden");
         renderGameState();
         fetchActiveRooms();
@@ -985,7 +1412,7 @@ async function joinRoom(directCode = null) {
         isSwitchingRoom = false;
         currentRoomCode = "";
         msgEl.style.color = "var(--danger)";
-        msgEl.textContent = "Odaya bağlanırken ağ hatası oluştu.";
+        msgEl.textContent = t("errJoinFail");
     }
 }
 
@@ -995,7 +1422,7 @@ async function addBotToRoom(silent = false) {
     if (gameState.players.length >= 6) {
         if (!silent) {
             msgEl.style.color = "var(--warning)";
-            msgEl.textContent = "Odada en fazla 6 oyuncu/bot olabilir!";
+            msgEl.textContent = t("errMaxPlayers");
         }
         return;
     }
@@ -1034,7 +1461,7 @@ function copyRoomCode() {
     const code = document.getElementById("room-code-text").textContent;
     navigator.clipboard.writeText(code);
     msgEl.style.color = "var(--emerald)";
-    msgEl.textContent = `Gizli oda kodu (${code}) panoya kopyalandı!`;
+    msgEl.textContent = t("codeCopied", code);
     setTimeout(() => { msgEl.textContent = ""; }, 2000);
 }
 
@@ -1042,11 +1469,12 @@ async function hostStartMultiplayer() {
     if (!isHost) return;
     if (gameState.players.length < 2) {
         msgEl.style.color = "var(--warning)";
-        msgEl.textContent = "Başlamak için en az 2 oyuncu olmalı (İstersen + Bot Ekle'ye bas)!";
+        msgEl.textContent = t("errMinPlayers");
         return;
     }
     msgEl.textContent = "";
     switchRightTab("chain");
+    gameState.lang = currentLang;
     gameState.players.forEach(p => p.eliminated = false);
     gameState.turnIndex = 0;
     gameState.turnNumber = 1;
@@ -1056,10 +1484,11 @@ async function hostStartMultiplayer() {
     gameState.winnerText = "";
     gameState.turnStartedAt = getSyncedNow();
 
-    const starter = cleanBotWords[Math.floor(Math.random() * cleanBotWords.length)];
+    const wordPool = gameState.lang === "en" ? cleanBotWordsEN : cleanBotWordsTR;
+    const starter = wordPool[Math.floor(Math.random() * wordPool.length)];
     gameState.currentWord = starter;
     gameState.usedWords.push(starter);
-    gameState.history.push({ word: starter, senderName: "Sistem", senderAvatar: "🎯", senderId: "sys", isBot: false });
+    gameState.history.push({ word: starter, senderName: t("systemName"), senderAvatar: "🎯", senderId: "sys", isBot: false });
 
     renderGameState();
     await pushRoomStateToFirebase();
@@ -1077,6 +1506,7 @@ function checkIfBotTurn() {
 
     const expectedTurn = gameState.turnNumber;
     const thinkTimeMs = 1500 + Math.random() * 2500;
+    const wordPool = gameState.lang === "en" ? cleanBotWordsEN : cleanBotWordsTR;
 
     botThinkTimeout = setTimeout(() => {
         if (gameState.status !== "playing" || gameState.turnNumber !== expectedTurn) return;
@@ -1084,13 +1514,14 @@ function checkIfBotTurn() {
         if (!currentActive || currentActive.id !== activePlayer.id) return;
 
         const requiredLetter = gameState.currentWord.slice(-1);
-        const possibleWords = cleanBotWords.filter(w =>
+        const possibleWords = wordPool.filter(w =>
             w.startsWith(requiredLetter) &&
             !gameState.usedWords.includes(w)
         );
 
         const roll = Math.random();
-        const isHardLetter = ["J", "V", "F", "P", "Z", "Ö", "Ü"].includes(requiredLetter);
+        const hardLetters = gameState.lang === "en" ? ["X", "Q", "Z", "J", "K", "V"] : ["J", "V", "F", "P", "Z", "Ö", "Ü"];
+        const isHardLetter = hardLetters.includes(requiredLetter);
         const failThreshold = isHardLetter ? (activePlayer.skill - 0.15) : activePlayer.skill;
 
         if (possibleWords.length === 0 || roll > failThreshold) {
@@ -1108,11 +1539,11 @@ inputEl.addEventListener("keydown", async (e) => {
         const me = gameState.players.find(p => p.id === myId);
         if (me && me.eliminated) {
             msgEl.style.color = "var(--danger)";
-            msgEl.textContent = "Elendiğin için artık kelime yazamazsın!";
+            msgEl.textContent = t("errEliminated");
             return;
         }
 
-        const rawInput = toTurkishUpper(inputEl.value);
+        const rawInput = gameState.lang === "en" ? inputEl.value.toUpperCase().trim() : toTurkishUpper(inputEl.value);
         if (!rawInput) return;
 
         const submittedTurn = gameState.turnNumber;
@@ -1162,46 +1593,48 @@ async function validateAndProcessWord(rawWord, senderId, submittedTurn = null) {
 
     const senderPlayer = gameState.players.find(p => p.id === senderId);
     if (!senderPlayer || senderPlayer.eliminated) {
-        sendErrorToPlayer(senderId, "Elendiğin için artık kelime yazamazsın!");
+        sendErrorToPlayer(senderId, t("errEliminated"));
         return;
     }
 
     const activePlayer = gameState.players[gameState.turnIndex];
     if (!activePlayer || activePlayer.id !== senderId) return;
 
-    const userWord = toTurkishUpper(String(rawWord || ""));
+    const isEn = gameState.lang === "en";
+    const userWord = isEn ? String(rawWord || "").toUpperCase().trim() : toTurkishUpper(String(rawWord || ""));
     const requiredLetter = gameState.currentWord.slice(-1);
 
     if (userWord.includes(" ")) {
-        sendErrorToPlayer(senderId, "Boşluk kullanamazsın, sadece tek kelime!");
+        sendErrorToPlayer(senderId, t("errNoSpace"));
         return;
     }
-    if (!/^[A-ZÇĞİÖŞÜ]+$/.test(userWord)) {
-        sendErrorToPlayer(senderId, "Sadece Türkçe harfler kullanabilirsin!");
+    if (isEn ? !/^[A-Z]+$/.test(userWord) : !/^[A-ZÇĞİÖŞÜ]+$/.test(userWord)) {
+        sendErrorToPlayer(senderId, t("errLettersOnly"));
         return;
     }
     if (userWord.length < 3) {
-        sendErrorToPlayer(senderId, "En az 3 harfli bir kelime yazmalısın!");
+        sendErrorToPlayer(senderId, t("errMinLen"));
         return;
     }
     if (!userWord.startsWith(requiredLetter)) {
-        sendErrorToPlayer(senderId, `Kelime '${requiredLetter}' harfi ile başlamalı!`);
+        sendErrorToPlayer(senderId, t("errStartsWith", requiredLetter));
         return;
     }
-    if (turkishCities.has(userWord)) {
-        sendErrorToPlayer(senderId, "Şehir isimleri yasak! Cins isim yazmalısın.");
+    if (isEn ? majorWorldCitiesEN.has(userWord) : turkishCities.has(userWord)) {
+        sendErrorToPlayer(senderId, t("errCity"));
         return;
     }
     if (gameState.usedWords.includes(userWord)) {
-        sendErrorToPlayer(senderId, "Bu kelime daha önce kullanıldı!");
+        sendErrorToPlayer(senderId, t("errUsed"));
         return;
     }
-    if (userWord.endsWith("Ğ")) {
-        sendErrorToPlayer(senderId, "'Ğ' ile biten kelime yazamazsın!");
+    if (isEn ? (userWord.endsWith("X") || userWord.endsWith("Q")) : userWord.endsWith("Ğ")) {
+        sendErrorToPlayer(senderId, t("errEndsSoftG"));
         return;
     }
-    if (!dictionarySet.has(userWord)) {
-        sendErrorToPlayer(senderId, `"${userWord.slice(0, 20)}" sözlükte bulunamadı!`);
+    const activeDict = isEn ? dictionarySetEN : dictionarySetTR;
+    if (!activeDict.has(userWord)) {
+        sendErrorToPlayer(senderId, t("errNotFound", userWord.slice(0, 20)));
         return;
     }
 
@@ -1297,8 +1730,8 @@ async function handleTimeout() {
         const safeWinnerName = winner ? sanitizeAnonNick(winner.name) : "";
         const safeWinnerAvatar = winner ? sanitizeAvatar(winner.avatar, "🎮") : "";
         gameState.winnerText = winner
-            ? `Oyun Bitti! Kazanan: ${safeWinnerAvatar} ${safeWinnerName} 🏆`
-            : "Oyun Bitti! Kazanan yok.";
+            ? t("winText", safeWinnerAvatar, safeWinnerName)
+            : t("noWinnerText");
         
         renderGameState();
         await pushRoomStateToFirebase();
@@ -1317,8 +1750,8 @@ async function handleTimeout() {
 }
 
 // --- EKRAN ÇİZİMİ ---
-function formatWord(word) {
-    const cleanWord = sanitizeWord(word);
+function formatWord(word, lang = gameState.lang) {
+    const cleanWord = sanitizeWord(word, lang);
     if (!cleanWord) return "";
     return `${escapeHTML(cleanWord.slice(0, -1))}<span>${escapeHTML(cleanWord.slice(-1))}</span>`;
 }
@@ -1327,7 +1760,7 @@ function renderGameState() {
     const safePlayers = Array.isArray(gameState.players) ? gameState.players : [];
     const safeHistory = Array.isArray(gameState.history) ? gameState.history : [];
 
-    document.getElementById("connection-count").textContent = `${safePlayers.length} Oyuncu`;
+    document.getElementById("connection-count").textContent = t("playersCount", safePlayers.length);
     document.getElementById("turn-count").textContent = Math.max(0, safeHistory.length - 1);
 
     const me = safePlayers.find(p => p.id === myId);
@@ -1338,12 +1771,12 @@ function renderGameState() {
         inputEl.disabled = true;
         inputEl.value = "";
         inputEl.classList.add("eliminated-input");
-        inputEl.placeholder = "Elendiğin için yazı yazamazsın";
+        inputEl.placeholder = t("wordPlaceholderElim");
         msgEl.textContent = "";
     } else {
         eliminatedBannerEl.classList.add("hidden");
         inputEl.classList.remove("eliminated-input");
-        inputEl.placeholder = "Kelimeyi yaz ve Enter'a bas...";
+        inputEl.placeholder = t("wordPlaceholder");
     }
 
     const playersBar = document.getElementById("players-bar");
@@ -1359,14 +1792,13 @@ function renderGameState() {
 
         const cleanName = sanitizeAnonNick(p.name);
         const safeAvatar = sanitizeAvatar(p.avatar, "🎮");
-        const label = p.id === myId ? `${cleanName} (Sen)` : cleanName;
+        const label = p.id === myId ? `${cleanName} ${t("youSuffix")}` : cleanName;
         chip.innerHTML = `<span class="chip-avatar">${safeAvatar}</span><span>${escapeHTML(label)}</span>`;
 
         if (isHost && gameState.status !== "playing" && p.isBot) {
             const removeBtn = document.createElement("span");
             removeBtn.className = "remove-bot-btn";
             removeBtn.textContent = "×";
-            removeBtn.title = "Botu çıkar";
             removeBtn.onclick = () => removeBot(p.id);
             chip.appendChild(removeBtn);
         }
@@ -1377,7 +1809,7 @@ function renderGameState() {
     const startBtn = document.getElementById("host-start-btn");
     if (isHost && gameState.status !== "playing") {
         hostControls.classList.remove("hidden");
-        startBtn.textContent = gameState.status === "gameover" ? "Tekrar Başlat" : "Oyunu Başlat";
+        startBtn.textContent = gameState.status === "gameover" ? t("btnRestart") : t("btnStart");
     } else {
         hostControls.classList.add("hidden");
     }
@@ -1386,18 +1818,18 @@ function renderGameState() {
     const botWordEl = document.getElementById("bot-word");
 
     if (gameState.status === "lobby") {
-        turnIndicator.textContent = isHost ? "Arkadaşlarını davet et veya '+ Bot Ekle' ile masayı doldur!" : "Oda kurucusunun oyunu başlatması bekleniyor...";
+        turnIndicator.textContent = isHost ? t("lobbyHostHint") : t("lobbyGuestHint");
         turnIndicator.style.color = "var(--cyan)";
-        botWordEl.textContent = "BEKLENİYOR";
+        botWordEl.textContent = t("waiting");
         inputEl.disabled = true;
     } else if (gameState.status === "playing") {
-        botWordEl.innerHTML = formatWord(gameState.currentWord);
+        botWordEl.innerHTML = formatWord(gameState.currentWord, gameState.lang);
         const activePlayer = safePlayers[gameState.turnIndex];
         const isMyTurn = activePlayer && activePlayer.id === myId && !amIEliminated;
 
         if (isMyTurn) {
             const safeActiveAvatar = sanitizeAvatar(activePlayer.avatar, "🎮");
-            turnIndicator.textContent = `${safeActiveAvatar} SIRA SENDE! '${gameState.currentWord.slice(-1)}' ile başlayan kelime yaz:`;
+            turnIndicator.textContent = t("yourTurn", safeActiveAvatar, gameState.currentWord.slice(-1));
             turnIndicator.style.color = "var(--emerald)";
             const wasDisabled = inputEl.disabled;
             inputEl.disabled = false;
@@ -1409,8 +1841,8 @@ function renderGameState() {
             const activeName = activePlayer ? sanitizeAnonNick(activePlayer.name) : "";
             const activeAvatar = activePlayer ? sanitizeAvatar(activePlayer.avatar, "🎮") : "";
             const statusText = activePlayer && activePlayer.isBot
-                ? `${activeAvatar} ${activeName} düşünüyor...`
-                : `Sıra ${activePlayer ? activeAvatar + " " + activeName : ""} oyuncusunda...`;
+                ? t("botThinking", activeAvatar, activeName)
+                : t("playerTurn", activeAvatar, activeName);
             turnIndicator.textContent = statusText;
             turnIndicator.style.color = activePlayer && activePlayer.isBot ? "#d6a2e8" : "var(--warning)";
             inputEl.disabled = true;
@@ -1418,7 +1850,7 @@ function renderGameState() {
         }
     } else if (gameState.status === "gameover") {
         eliminatedBannerEl.classList.add("hidden");
-        turnIndicator.textContent = String(gameState.winnerText || "Oyun Bitti!").slice(0, 80);
+        turnIndicator.textContent = String(gameState.winnerText || t("noWinnerText")).slice(0, 80);
         turnIndicator.style.color = "var(--emerald)";
         inputEl.disabled = true;
     }
@@ -1435,11 +1867,11 @@ function renderGameState() {
             const badgeClass = isMe ? "badge-me" : (item.isBot ? "badge-bot" : "");
             const avatar = sanitizeAvatar(item.senderAvatar, "🎮");
             const cleanSenderName = escapeHTML(sanitizeAnonNick(item.senderName));
-            const displayName = isMe ? `${avatar} Sen` : `${avatar} ${cleanSenderName}`;
+            const displayName = isMe ? `${avatar} ${escapeHTML(t("youWord"))}` : `${avatar} ${cleanSenderName}`;
             tr.innerHTML = `
                 <td class="col-num">${i + 1}</td>
                 <td><span class="badge ${badgeClass}">${displayName}</span></td>
-                <td class="col-word">${formatWord(item.word)}</td>
+                <td class="col-word">${formatWord(item.word, gameState.lang)}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -1455,6 +1887,7 @@ function renderGameState() {
 initServerTimeSync();
 initAnonNickBox();
 initAvatarSelector();
+applyLanguageToUI();
 startActiveRoomsMonitor();
 fetchGlobalLeaderboard();
-loadDictionary();
+loadDictionaries();
